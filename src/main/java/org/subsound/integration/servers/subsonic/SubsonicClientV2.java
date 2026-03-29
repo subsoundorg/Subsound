@@ -2,6 +2,13 @@ package org.subsound.integration.servers.subsonic;
 
 import com.google.gson.annotations.SerializedName;
 import okhttp3.HttpUrl;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.subsound.configuration.Config.ServerConfig;
 import org.subsound.configuration.constants.Constants;
 import org.subsound.integration.ServerClient;
@@ -9,15 +16,10 @@ import org.subsound.integration.ServerClient.ObjectIdentifier.AlbumIdentifier;
 import org.subsound.integration.ServerClient.ObjectIdentifier.ArtistIdentifier;
 import org.subsound.integration.ServerClient.ObjectIdentifier.PlaylistIdentifier;
 import org.subsound.utils.Utils;
-import org.subsound.utils.javahttp.LoggingHttpClient;
 import org.subsound.utils.javahttp.TextUtils;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpRequest.BodyPublishers;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -31,16 +33,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.Optional.ofNullable;
 import static org.subsound.app.state.AppManager.SERVER_ID;
 import static org.subsound.persistence.ThumbnailCache.toCachePath;
 
 /**
- * JSON-based Subsonic API client using JDK HttpClient.
+ * JSON-based Subsonic API client using OkHttpClient.
  * Replaces the feign-based SubsonicClient with direct HTTP + Gson parsing.
+ * Uses OkHttp's callTimeout for proper end-to-end request timeouts.
  */
 public class SubsonicClientV2 implements ServerClient {
+    private static final Logger log = LoggerFactory.getLogger(SubsonicClientV2.class);
     private static final String API_VERSION = "1.16.1";
     private static final HexFormat HEX = HexFormat.of().withLowerCase();
     private static final Random RANDOM = new Random();
@@ -52,7 +57,7 @@ public class SubsonicClientV2 implements ServerClient {
     private final String password;
     private final String streamFormat;  // "" = source
     private final int streamBitRate;    // 0 = source
-    private final HttpClient httpClient;
+    private final OkHttpClient httpClient;
 
     public SubsonicClientV2(ServerConfig cfg) {
         this.serverId = cfg.id();
@@ -60,9 +65,13 @@ public class SubsonicClientV2 implements ServerClient {
         this.serverUri = URI.create(cfg.url());
         this.username = cfg.username();
         this.password = cfg.password();
-        this.httpClient = new LoggingHttpClient(
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
-        );
+
+        this.httpClient = new OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .callTimeout(60, TimeUnit.SECONDS)
+                .addInterceptor(loggingInterceptor())
+                .build();
 
         // Derive transcode settings from config (same logic as SubsonicClient.createSettings)
         TranscodeFormat fmt = cfg.audioFormat() != null ? cfg.audioFormat() : TranscodeFormat.source;
@@ -96,13 +105,26 @@ public class SubsonicClientV2 implements ServerClient {
         }
     }
 
-    // ── URL building ─────────────────────────────────────────────────────
-
-    private URI buildUri(String path) {
-        return buildUri(path, Map.of());
+    private static Interceptor loggingInterceptor() {
+        return chain -> {
+            var request = chain.request();
+            log.info("[{} {}] -->", request.method(), request.url());
+            long startNanos = System.nanoTime();
+            try {
+                var response = chain.proceed(request);
+                long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+                log.info("[{} {}] <-- {} in {}ms", request.method(), request.url(), response.code(), elapsedMs);
+                return response;
+            } catch (Exception e) {
+                log.warn("[{} {}] <-- ERROR: {}", request.method(), request.url(), e.getMessage());
+                throw e;
+            }
+        };
     }
 
-    private URI buildUri(String path, Map<String, String> extraParams) {
+    // ── URL building ─────────────────────────────────────────────────────
+
+    private HttpUrl buildUrl(String path, Map<String, String> extraParams) {
         var salt = generateSalt();
         var token = md5(password + salt);
         var pathPrefix = Utils.removeTrailingSlash(this.serverUri.getPath());
@@ -117,14 +139,18 @@ public class SubsonicClientV2 implements ServerClient {
         for (var param : extraParams.entrySet()) {
             builder.setQueryParameter(param.getKey(), param.getValue());
         }
-        return builder.build().uri();
+        return builder.build();
     }
 
-    /**
-     * Build a URI with support for multi-value query parameters
-     * (e.g. songIdToAdd=1&songIdToAdd=2).
-     */
-    private URI buildUriMulti(String path, Map<String, String> singleParams, Map<String, List<String>> multiParams) {
+    private URI buildUri(String path) {
+        return buildUrl(path, Map.of()).uri();
+    }
+
+    private URI buildUri(String path, Map<String, String> extraParams) {
+        return buildUrl(path, extraParams).uri();
+    }
+
+    private HttpUrl buildUrlMulti(String path, Map<String, String> singleParams, Map<String, List<String>> multiParams) {
         var salt = generateSalt();
         var token = md5(password + salt);
         var pathPrefix = Utils.removeTrailingSlash(this.serverUri.getPath());
@@ -144,75 +170,72 @@ public class SubsonicClientV2 implements ServerClient {
                 builder.addQueryParameter(param.getKey(), value);
             }
         }
-        return builder.build().uri();
+        return builder.build();
     }
 
     // ── HTTP helpers ─────────────────────────────────────────────────────
 
     private <T> T fetchJson(String path, Map<String, String> params, Class<T> responseClass) {
-        try {
-            URI uri = buildUri(path, params);
-            var req = HttpRequest.newBuilder().GET().uri(uri).build();
-            HttpResponse<byte[]> res = httpClient.send(req, HttpResponse.BodyHandlers.ofByteArray());
-            var body = new String(res.body(), StandardCharsets.UTF_8);
-            if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                throw new RuntimeException("HTTP " + res.statusCode() + " from " + path + ": " + body);
+        var url = buildUrl(path, params);
+        var request = new Request.Builder().url(url).get().build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            var body = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("HTTP " + response.code() + " from " + path + ": " + body);
             }
             return Utils.fromJson(body, responseClass);
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     private <T> T postJson(String path, Map<String, String> params, Class<T> responseClass) {
-        try {
-            URI uri = buildUri(path, params);
-            var req = HttpRequest.newBuilder().POST(BodyPublishers.noBody()).uri(uri).build();
-            HttpResponse<byte[]> res = httpClient.send(req, HttpResponse.BodyHandlers.ofByteArray());
-            var body = new String(res.body(), StandardCharsets.UTF_8);
-            if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                throw new RuntimeException("HTTP " + res.statusCode() + " from " + path + ": " + body);
+        var url = buildUrl(path, params);
+        var request = new Request.Builder()
+                .url(url)
+                .post(RequestBody.create(new byte[0]))
+                .build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            var body = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("HTTP " + response.code() + " from " + path + ": " + body);
             }
             return Utils.fromJson(body, responseClass);
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     private void fetchVoid(String path, Map<String, String> params) {
-        try {
-            URI uri = buildUri(path, params);
-            var req = HttpRequest.newBuilder().GET().uri(uri).build();
-            HttpResponse<byte[]> res = httpClient.send(req, HttpResponse.BodyHandlers.ofByteArray());
-            if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                var body = new String(res.body(), StandardCharsets.UTF_8);
-                throw new RuntimeException("HTTP " + res.statusCode() + " from " + path + ": " + body);
+        var url = buildUrl(path, params);
+        var request = new Request.Builder().url(url).get().build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            var body = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("HTTP " + response.code() + " from " + path + ": " + body);
             }
-            var body = new String(res.body(), StandardCharsets.UTF_8);
             var parsed = Utils.fromJson(body, PingResponseJson.class);
             if (!"ok".equalsIgnoreCase(parsed.subsonicResponse.status)) {
                 throw new RuntimeException("Subsonic error from " + path + ": " + body);
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     private void fetchVoidMulti(String path, Map<String, String> singleParams, Map<String, List<String>> multiParams) {
-        try {
-            URI uri = buildUriMulti(path, singleParams, multiParams);
-            var req = HttpRequest.newBuilder().GET().uri(uri).build();
-            HttpResponse<byte[]> res = httpClient.send(req, HttpResponse.BodyHandlers.ofByteArray());
-            if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                var body = new String(res.body(), StandardCharsets.UTF_8);
-                throw new RuntimeException("HTTP " + res.statusCode() + " from " + path + ": " + body);
+        var url = buildUrlMulti(path, singleParams, multiParams);
+        var request = new Request.Builder().url(url).get().build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            var body = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("HTTP " + response.code() + " from " + path + ": " + body);
             }
-            var body = new String(res.body(), StandardCharsets.UTF_8);
             var parsed = Utils.fromJson(body, PingResponseJson.class);
             if (!"ok".equalsIgnoreCase(parsed.subsonicResponse.status)) {
                 throw new RuntimeException("Subsonic error from " + path + ": " + body);
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
