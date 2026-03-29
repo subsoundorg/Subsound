@@ -5,8 +5,6 @@ import org.subsound.integration.platform.secret.NoopSecretService;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.Map;
-
 /**
  * Integration test that calls a real Navidrome/Subsonic server.
  * Run manually with a configured server in ~/.local/share/io.github.Subsound/config.json
@@ -14,34 +12,10 @@ import java.util.Map;
 @Ignore("Requires a real server connection")
 public class SubsonicClientIntegrationTest {
 
-    private SubsonicClient createClient() {
+    private SubsonicClientV2 createClient() {
         var config = Config.createDefault(new NoopSecretService());
         var cfg = config.serverConfig;
-        return SubsonicClient.create(cfg);
-    }
-
-    @Test
-    public void printGetArtistJson() {
-        var client = createClient();
-        var artists = client.getArtists();
-        var firstArtistId = artists.list().getFirst().id();
-        System.out.println("Artist ID: " + firstArtistId);
-
-        String body = client.fetchJsonBody("/rest/getArtist", Map.of("id", firstArtistId));
-        System.out.println("=== getArtist response ===");
-        System.out.println(body);
-    }
-
-    @Test
-    public void printGetArtistInfo2Json() {
-        var client = createClient();
-        var artists = client.getArtists();
-        var firstArtistId = artists.list().getFirst().id();
-        System.out.println("Artist ID: " + firstArtistId);
-
-        String body = client.fetchJsonBody("/rest/getArtistInfo2", Map.of("id", firstArtistId));
-        System.out.println("=== getArtistInfo2 response ===");
-        System.out.println(body);
+        return SubsonicClientV2.create(cfg);
     }
 
     @Test
