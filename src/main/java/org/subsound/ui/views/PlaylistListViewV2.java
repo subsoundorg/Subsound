@@ -49,6 +49,7 @@ import org.subsound.ui.components.Icons;
 import org.subsound.ui.components.ListItemPlayingIcon;
 import org.subsound.ui.components.NowPlayingOverlayIcon.NowPlayingState;
 import org.subsound.ui.components.RoundedAlbumArt;
+import org.subsound.ui.components.SongDownloadStatusIcon;
 import org.subsound.ui.components.StarButton;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.utils.Utils;
@@ -413,7 +414,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             return Boolean.compare(sb, sa);
         });
         var starCol = new ColumnViewColumn("★", starFactory);
-        starCol.setFixedWidth(92);
+        starCol.setFixedWidth(120);
         starCol.setSorter(starSorter);
         this.listView.appendColumn(starCol);
 
@@ -1259,10 +1260,12 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
 
     private class ActionCell extends Box {
         private final StarButton starButton;
+        private final SongDownloadStatusIcon downloadStatusIcon;
         private final Button menuButton;
         private final Function<PlayerAction, CompletableFuture<Void>> onAction;
         private GSongInfo gSong;
         private final AtomicReference<SignalConnection<?>> favoriteSignal = new AtomicReference<>();
+        private final AtomicReference<SignalConnection<?>> downloadSignal = new AtomicReference<>();
         @Nullable volatile GPlaylistEntry boundEntry;
         @Nullable volatile ListItem listItem;
 
@@ -1273,6 +1276,10 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             this.setValign(FILL);
             this.setHexpand(true);
             this.setVexpand(true);
+
+            this.downloadStatusIcon = new SongDownloadStatusIcon();
+            this.downloadStatusIcon.setValign(CENTER);
+            this.append(downloadStatusIcon);
 
             this.starButton = new StarButton(
                     Optional.empty(),
@@ -1313,6 +1320,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             this.boundEntry = entry;
             this.gSong = entry.gSong();
             this.starButton.setStarredAt(gSong.getSongInfo().starred());
+            this.downloadStatusIcon.updateDownloadState(gSong.getDownloadStateEnum());
             var conn = gSong.onNotify(
                     GSongInfo.Signal.IS_FAVORITE.getId(), _ -> {
                         this.starButton.setStarredAt(this.gSong.getSongInfo().starred());
@@ -1322,12 +1330,28 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             if (old != null) {
                 old.disconnect();
             }
+            var dlConn = gSong.onNotify(
+                    GSongInfo.Signal.DOWNLOAD_STATE.getId(), _ -> {
+                        var g = this.gSong;
+                        if (g != null) {
+                            this.downloadStatusIcon.updateDownloadState(g.getDownloadStateEnum());
+                        }
+                    }
+            );
+            var oldDl = downloadSignal.getAndSet(dlConn);
+            if (oldDl != null) {
+                oldDl.disconnect();
+            }
         }
 
         void unbind() {
             var sig = favoriteSignal.getAndSet(null);
             if (sig != null) {
                 sig.disconnect();
+            }
+            var dlSig = downloadSignal.getAndSet(null);
+            if (dlSig != null) {
+                dlSig.disconnect();
             }
             this.boundEntry = null;
             this.listItem = null;
