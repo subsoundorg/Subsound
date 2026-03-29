@@ -13,6 +13,7 @@ import org.subsound.utils.LogUtils;
 import org.subsound.utils.Utils;
 import org.freedesktop.gstreamer.gst.Gst;
 import org.gnome.adw.Application;
+import org.gnome.glib.GLib;
 import org.gnome.gdkpixbuf.Pixbuf;
 import org.gnome.gio.ApplicationFlags;
 import org.javagi.base.Out;
@@ -68,6 +69,18 @@ public class Main {
             } catch (Throwable throwable) {
                 log.warn("error starting mprisController: ", throwable);
             }
+        });
+
+        // Handle SIGINT (Ctrl+C) and SIGTERM for graceful shutdown
+        GLib.unixSignalAdd(GLib.PRIORITY_DEFAULT, 2, () -> {  // SIGINT
+            log.info("Received SIGINT, shutting down...");
+            app.quit();
+            return GLib.SOURCE_REMOVE;
+        });
+        GLib.unixSignalAdd(GLib.PRIORITY_DEFAULT, 15, () -> { // SIGTERM
+            log.info("Received SIGTERM, shutting down...");
+            app.quit();
+            return GLib.SOURCE_REMOVE;
         });
 
         try {
