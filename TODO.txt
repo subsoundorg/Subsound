@@ -5,7 +5,7 @@
 - [X] flatpak: maybe need to change <app-id> to `io.github.Subsound`
 - [X] flatpak: fix frontpage screen not working after first launch configuration is completed
 - [X] flatpak: logout/reset account
-- [ ] flatpak: decide how to store the password: config file or libsecret ?
+- [X] flatpak: decide how to store the password: config file or libsecret ?
 - [ ] flatpak: server config: allow setting custom headers?
 - [X] flatpak: other flatpak apps can not read the mpris:artUrl file path ( see https://gitlab.freedesktop.org/mpris/mpris-spec/-/merge_requests/4 )
     - [X] mpris: attempt using a local http server to serve the artwork file
