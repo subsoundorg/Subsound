@@ -4,6 +4,7 @@ import org.subsound.integration.ServerClient;
 import org.subsound.integration.ServerClient.PlaylistKind;
 import org.subsound.integration.ServerClient.PlaylistSimple;
 import org.subsound.ui.models.GSongInfo;
+import org.subsound.ui.models.GSongStore;
 import org.subsound.utils.Utils;
 import org.gnome.glib.Type;
 import org.gnome.gio.ListStore;
@@ -35,7 +36,7 @@ public class PlaylistsStore {
     private final ArrayList<String> backingIds = new ArrayList<>();
     private final AtomicBoolean isLoading = new AtomicBoolean(false);
     private final Object lock = new Object();
-    private final GSongInfo.GSongStore songStore;
+    private final GSongStore songStore;
     private GPlaylist starredPlaylist;
 
     public PlaylistsStore(AppManager appManager) {

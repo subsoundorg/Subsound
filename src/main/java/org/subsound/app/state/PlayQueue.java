@@ -8,7 +8,7 @@ import org.subsound.sound.PlaybinPlayer.Source;
 import org.subsound.sound.Player;
 import org.subsound.ui.models.GQueueItem;
 import org.subsound.ui.models.GSongInfo;
-import org.subsound.ui.models.GSongInfo.GSongStore;
+import org.subsound.ui.models.GSongStore;
 import org.subsound.ui.views.PlaylistListViewV2;
 import org.subsound.utils.Utils;
 import org.gnome.gio.ListStore;

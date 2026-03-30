@@ -3,7 +3,7 @@ package org.subsound.app.state;
 import org.subsound.integration.ServerClient;
 import org.subsound.integration.ServerClient.SongInfo;
 import org.subsound.ui.models.GSongInfo;
-import org.subsound.ui.models.GSongInfo.GSongStore;
+import org.subsound.ui.models.GSongStore;
 import org.subsound.utils.Utils;
 import org.gnome.gio.ListStore;
 import org.slf4j.Logger;

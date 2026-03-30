@@ -34,7 +34,7 @@ import org.subsound.ui.components.AppNavigation;
 import org.subsound.ui.models.GDownloadState;
 import org.subsound.ui.models.GQueueItem;
 import org.subsound.ui.models.GSongInfo;
-import org.subsound.ui.models.GSongInfo.GSongStore;
+import org.subsound.ui.models.GSongStore;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.subjects.BehaviorSubject;
 import io.soabase.recordbuilder.core.RecordBuilderFull;

@@ -30,7 +30,7 @@ import org.subsound.app.state.PlaylistsStore.GPlaylist;
 import org.subsound.integration.ServerClient;
 import org.subsound.integration.ServerClient.PlaylistKind;
 import org.subsound.integration.ServerClient.PlaylistSimple;
-import org.subsound.ui.models.GSongInfo.GSongStore;
+import org.subsound.ui.models.GSongStore;
 import org.subsound.ui.views.PlaylistListViewV2;
 import org.subsound.ui.views.StarredListView;
 import org.subsound.utils.Utils;

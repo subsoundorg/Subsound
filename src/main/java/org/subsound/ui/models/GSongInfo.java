@@ -1,19 +1,16 @@
 package org.subsound.ui.models;
 
-import org.subsound.integration.ServerClient.ObjectIdentifier.SongIdentifier;
-import org.subsound.integration.ServerClient.SongInfo;
-import org.subsound.persistence.database.DownloadQueueItem;
-import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
 import org.gnome.glib.Type;
 import org.gnome.gobject.GObject;
 import org.javagi.gobject.SignalConnection;
 import org.javagi.gobject.annotations.Property;
 import org.javagi.gobject.types.Types;
+import org.subsound.integration.ServerClient.SongInfo;
+import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
 
 import java.lang.foreign.MemorySegment;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,58 +20,6 @@ import static org.subsound.utils.Utils.runOnMainThread;
 
 public class GSongInfo extends GObject {
     public static final Type gtype = Types.register(GSongInfo.class);
-
-    public static class GSongStore {
-        private final ConcurrentHashMap<String, GSongInfo> store = new ConcurrentHashMap<>();
-        private final Function<String, Optional<DownloadQueueItem>> downloadManager;
-        private final Function<String, SongInfo> songLoader;
-
-        public GSongStore(
-                Function<String, SongInfo> songLoader,
-                Function<String, Optional<DownloadQueueItem>> downloadManager
-        ) {
-            this.downloadManager = downloadManager;
-            this.songLoader = songLoader;
-        }
-
-        public GSongInfo getSongById(SongIdentifier id) {
-            return store.computeIfAbsent(id.songId(), key -> {
-                var song = songLoader.apply(key);
-                return this.newInstance(song);
-            });
-        }
-        public GSongInfo getSongById(String songId) {
-            return getSongById(new SongIdentifier(songId));
-        }
-
-
-        public Optional<GSongInfo> getExisting(String songId) {
-            return Optional.ofNullable(store.get(songId));
-        }
-        public GSongInfo get(SongInfo songInfo) {
-            return newInstance(songInfo);
-        }
-
-        public GSongInfo newInstance(SongInfo value) {
-            // TODO: replace with the updated SongInfo data
-            var gsong = store.computeIfAbsent(
-                    value.id(),
-                    key -> {
-                        GSongInfo instance = GObject.newInstance(getType());
-                        instance.songInfo = value;
-                        var songStatus = this.downloadManager.apply(key);
-                        songStatus.ifPresent(item -> instance.setDownloadStateEnum(item.status()));
-                        return instance;
-                    }
-            );
-            gsong.mutate(_ -> value);
-            return gsong;
-        }
-
-        public int size() {
-            return store.size();
-        }
-    }
 
     private final AtomicBoolean isPlaying = new AtomicBoolean(false);
     private final AtomicBoolean isFavorite = new AtomicBoolean(false);
@@ -87,6 +32,13 @@ public class GSongInfo extends GObject {
     }
 
     private SongInfo songInfo;
+
+    // newInstance: package-private, please do not use directly:
+    static GSongInfo newInstance(SongInfo value) {
+        GSongInfo instance = GObject.newInstance(GSongInfo.getType());
+        instance.songInfo = value;
+        return instance;
+    }
 
     public GSongInfo(MemorySegment address) {
         super(address);
