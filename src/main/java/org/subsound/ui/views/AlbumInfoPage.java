@@ -40,7 +40,9 @@ import org.gnome.gtk.MenuButton;
 import org.gnome.gtk.Gtk;
 import org.gnome.gtk.Justification;
 import org.gnome.gtk.Label;
+import org.gnome.gtk.EventControllerKey;
 import org.gnome.gtk.ListBox;
+import org.gnome.gtk.PropagationPhase;
 import org.gnome.gtk.Overflow;
 import org.gnome.gtk.Overlay;
 import org.gnome.gtk.Picture;
@@ -575,6 +577,22 @@ public class AlbumInfoPage extends Box implements StateListener {
                     row.getIndex()
             ));
         });
+
+        var keyController = new EventControllerKey();
+        keyController.setPropagationPhase(PropagationPhase.CAPTURE);
+        keyController.onKeyPressed((keyval, keycode, state) -> {
+            // GDK_KEY_space = 0x0020
+            if (keyval == 0x20) {
+                if (appManager.getState().player().state().isPlaying()) {
+                    this.onAction.apply(new PlayerAction.Pause());
+                } else {
+                    this.onAction.apply(new PlayerAction.Play());
+                }
+                return true;
+            }
+            return false;
+        });
+        this.listView.addController(keyController);
 
         var initialNetworkStatus = this.appManager.getState().networkState().status();
         this.networkStatus = initialNetworkStatus;
