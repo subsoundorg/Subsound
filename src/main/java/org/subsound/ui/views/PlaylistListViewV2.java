@@ -1259,8 +1259,8 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
     }
 
     private class ActionCell extends Box {
+        private final SongDownloadStatusIcon downloadIcon;
         private final StarButton starButton;
-        private final SongDownloadStatusIcon downloadStatusIcon;
         private final Button menuButton;
         private final Function<PlayerAction, CompletableFuture<Void>> onAction;
         private GSongInfo gSong;
@@ -1277,9 +1277,9 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             this.setHexpand(true);
             this.setVexpand(true);
 
-            this.downloadStatusIcon = new SongDownloadStatusIcon();
-            this.downloadStatusIcon.setValign(CENTER);
-            this.append(downloadStatusIcon);
+            this.downloadIcon = new SongDownloadStatusIcon();
+            this.downloadIcon.setValign(CENTER);
+            this.append(downloadIcon);
 
             this.starButton = new StarButton(
                     Optional.empty(),
@@ -1320,7 +1320,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             this.boundEntry = entry;
             this.gSong = entry.gSong();
             this.starButton.setStarredAt(gSong.getSongInfo().starred());
-            this.downloadStatusIcon.updateDownloadState(gSong.getDownloadStateEnum());
+            this.downloadIcon.updateDownloadState(gSong.getDownloadStateEnum());
             var conn = gSong.onNotify(
                     GSongInfo.Signal.IS_FAVORITE.getId(), _ -> {
                         this.starButton.setStarredAt(this.gSong.getSongInfo().starred());
@@ -1334,7 +1334,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
                     GSongInfo.Signal.DOWNLOAD_STATE.getId(), _ -> {
                         var g = this.gSong;
                         if (g != null) {
-                            this.downloadStatusIcon.updateDownloadState(g.getDownloadStateEnum());
+                            this.downloadIcon.updateDownloadState(g.getDownloadStateEnum());
                         }
                     }
             );
