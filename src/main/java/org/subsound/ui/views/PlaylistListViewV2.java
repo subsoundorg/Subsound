@@ -1270,7 +1270,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
         @Nullable volatile ListItem listItem;
 
         ActionCell(Function<PlayerAction, CompletableFuture<Void>> onAction) {
-            super(HORIZONTAL, 0);
+            super(HORIZONTAL, 4);
             this.onAction = onAction;
             this.setHalign(FILL);
             this.setValign(FILL);
@@ -1279,6 +1279,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
 
             this.downloadIcon = new SongDownloadStatusIcon();
             this.downloadIcon.setValign(CENTER);
+            this.downloadIcon.addCssClass(Classes.labelDim.className());
             this.append(downloadIcon);
 
             this.starButton = new StarButton(
@@ -1303,9 +1304,13 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
                     .build();
             this.menuButton.onClicked(() -> {
                 var item = this.listItem;
-                if (item == null) { return; }
+                if (item == null) {
+                    return;
+                }
                 var entry = this.boundEntry;
-                if (entry == null) { return; }
+                if (entry == null) {
+                    return;
+                }
                 selectionModel.setSelected(item.getPosition());
                 var popover = buildRowContextMenu(entry);
                 popover.setParent(this.menuButton);

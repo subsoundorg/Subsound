@@ -36,6 +36,7 @@ public enum Classes {
     monospace("monospace"),
     bodyText("body"), // The .body style class is the default text style.
     labelDim("dim-label"),
+    circular("circular"),
     labelNumeric("numeric"), // display label with numbers as monospace-ish
     flat("flat"),
     clickLabel("click-label"),
