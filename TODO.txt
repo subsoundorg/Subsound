@@ -157,7 +157,7 @@ worklog:
     - [ ] find a prettier icon/way to show download status
   - [X] when in offline mode, show each row not in the downloaded set as greyed/disabled rows
   - [X] when in offline mode, show each row not in the song cache as greyed/disabled rows
-  - [ ] show download status on the playlist song rows
+  - [X] show download status on the playlist song rows
   - [ ] show status somewhere during sync
 - Onboarding
   - [X] Launch without crashing on zero config
