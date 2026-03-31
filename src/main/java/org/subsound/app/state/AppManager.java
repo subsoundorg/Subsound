@@ -145,8 +145,10 @@ public class AppManager {
                 dbService,
                 songCache,
                 downloadEvent -> {
-                    var gsongOpt = this.gSongStore.getExisting(downloadEvent.item().songId());
-                    gsongOpt.ifPresent(gsong -> gsong.setDownloadState(downloadEvent.type().toState()));
+                    this.gSongStore.setDownloadState(
+                            downloadEvent.item().songId(),
+                            downloadEvent.type().toState()
+                    );
                 }
         );
         // initial load of download queue:

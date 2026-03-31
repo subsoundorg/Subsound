@@ -63,5 +63,9 @@ public class GSongStore {
 
     public void setDownloadState(String songId, GDownloadState state) {
         downloadState.put(songId, state);
+        var existing = store.get(songId);
+        if (existing != null) {
+            existing.setDownloadState(state);
+        }
     }
 }
