@@ -25,7 +25,7 @@ import java.util.function.Function;
 import static org.subsound.utils.Utils.sha256;
 
 public class SongCache implements SongCacheChecker {
-    private static final Logger log = LoggerFactory.getLogger(SongCache.class);
+    private final Logger log = LoggerFactory.getLogger(SongCache.class);
 
     private final Path root;
     private final HttpClient client = new LoggingHttpClient(HttpClient.newBuilder().build());

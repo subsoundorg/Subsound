@@ -1,18 +1,24 @@
 package org.subsound.app.state;
 
-import org.subsound.persistence.database.SyncService;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.reactivex.rxjava3.subjects.BehaviorSubject;
+import io.soabase.recordbuilder.core.RecordBuilderFull;
+import org.gnome.adw.ToastOverlay;
+import org.gnome.gio.ListStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.subsound.app.state.NetworkMonitoring.NetworkState;
 import org.subsound.app.state.PlayerAction.Enqueue;
 import org.subsound.app.state.PlayerAction.PlayPositionInQueue;
 import org.subsound.configuration.Config;
 import org.subsound.configuration.Config.ConfigurationDTO.OnboardingState;
 import org.subsound.integration.ServerClient;
-import org.subsound.integration.ServerClient.TranscodeFormat;
 import org.subsound.integration.ServerClient.PlaylistCreateRequest;
 import org.subsound.integration.ServerClient.PlaylistDeleteRequest;
-import org.subsound.integration.ServerClient.PlaylistRenameRequest;
 import org.subsound.integration.ServerClient.PlaylistRemoveSongRequest;
+import org.subsound.integration.ServerClient.PlaylistRenameRequest;
 import org.subsound.integration.ServerClient.SongInfo;
+import org.subsound.integration.ServerClient.TranscodeFormat;
 import org.subsound.integration.ServerClient.TranscodedStream;
 import org.subsound.persistence.CachingClient;
 import org.subsound.persistence.DownloadManager;
@@ -27,21 +33,14 @@ import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.PlayerConfig;
 import org.subsound.persistence.database.PlayerConfigService;
 import org.subsound.persistence.database.PlayerStateJson;
+import org.subsound.persistence.database.SyncService;
 import org.subsound.sound.PlaybinPlayer;
 import org.subsound.sound.PlaybinPlayer.AudioSource;
 import org.subsound.sound.PlaybinPlayer.Source;
 import org.subsound.ui.components.AppNavigation;
-import org.subsound.ui.models.GDownloadState;
 import org.subsound.ui.models.GQueueItem;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GSongStore;
-import io.reactivex.rxjava3.schedulers.Schedulers;
-import io.reactivex.rxjava3.subjects.BehaviorSubject;
-import io.soabase.recordbuilder.core.RecordBuilderFull;
-import org.gnome.adw.ToastOverlay;
-import org.gnome.gio.ListStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.subsound.utils.Utils;
 
 import java.io.IOException;
@@ -139,27 +138,21 @@ public class AppManager {
                     return new TranscodedStream(transcodeInfo.songId(), uri);
                 }
         );
+        this.gSongStore = new GSongStore(
+                songId -> this.useClient(c -> c.getSong(songId))
+        );
         this.downloadManager = new DownloadManager(
                 dbService,
                 songCache,
                 downloadEvent -> {
-                    if (this.getSongStore() == null) {
-                        return;
-                    }
-                    var gsongOpt = this.getSongStore().getExisting(downloadEvent.item().songId());
-                    gsongOpt.ifPresent(gsong -> gsong.setDownloadState(switch (downloadEvent.type()) {
-                        case DOWNLOAD_PENDING -> GDownloadState.PENDING;
-                        case DOWNLOAD_STARTED -> GDownloadState.DOWNLOADING;
-                        case DOWNLOAD_COMPLETED -> GDownloadState.DOWNLOADED;
-                        case DOWNLOAD_FAILED -> GDownloadState.NONE;
-                        case SONG_CACHED -> GDownloadState.CACHED;
-                    }));
+                    var gsongOpt = this.gSongStore.getExisting(downloadEvent.item().songId());
+                    gsongOpt.ifPresent(gsong -> gsong.setDownloadState(downloadEvent.type().toState()));
                 }
         );
-        this.gSongStore = new GSongStore(
-                songId -> this.useClient(c -> c.getSong(songId)),
-                this.downloadManager::getSongStatus
-        );
+        // initial load of download queue:
+        this.downloadManager.listDownloads().forEach(item -> {
+            this.gSongStore.setDownloadState(item.songId(), item.status().toState());
+        });
         this.networkMonitor = new GioNetworkStatusMonitor(this::updateNetworkState);
         this.playQueue = new PlayQueue(
                 player,

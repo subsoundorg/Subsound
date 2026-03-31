@@ -9,6 +9,7 @@ import org.subsound.integration.ServerClient.TranscodeInfo;
 import org.subsound.persistence.database.DatabaseServerService;
 import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
+import org.subsound.ui.models.GDownloadState;
 import org.subsound.utils.Utils;
 
 import java.time.Duration;
@@ -27,7 +28,7 @@ public class DownloadManager {
     private final Consumer<DownloadManagerEvent> onEvent;
     private final Cache<String, Optional<DownloadQueueItem>> songStatusCache = Caffeine.newBuilder()
             .expireAfterAccess(Duration.ofMinutes(10))
-            .maximumSize(2000)
+            .maximumSize(200)
             .build();
     private volatile boolean running = true;
 
@@ -42,6 +43,13 @@ public class DownloadManager {
         startQueueProcessor();
     }
 
+    public List<DownloadQueueItem> listDownloadQueue() {
+        return dbService.listDownloadQueue();
+    }
+    public List<DownloadQueueItem> listDownloads() {
+        return dbService.listDownloadQueue(List.of(DownloadStatus.values()));
+    }
+
     public record DownloadManagerEvent(
             Type type,
             DownloadQueueItem item
@@ -51,7 +59,17 @@ public class DownloadManager {
             DOWNLOAD_STARTED,
             DOWNLOAD_COMPLETED,
             DOWNLOAD_FAILED,
-            SONG_CACHED
+            SONG_CACHED;
+
+            public GDownloadState toState() {
+                return switch (this) {
+                    case DOWNLOAD_PENDING -> GDownloadState.PENDING;
+                    case DOWNLOAD_STARTED -> GDownloadState.DOWNLOADING;
+                    case DOWNLOAD_COMPLETED -> GDownloadState.DOWNLOADED;
+                    case DOWNLOAD_FAILED -> GDownloadState.NONE;
+                    case SONG_CACHED -> GDownloadState.CACHED;
+                };
+            }
         }
     }
 

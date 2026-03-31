@@ -2,7 +2,6 @@ package org.subsound.ui.models;
 
 import org.subsound.integration.ServerClient.ObjectIdentifier.SongIdentifier;
 import org.subsound.integration.ServerClient.SongInfo;
-import org.subsound.persistence.database.DownloadQueueItem;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,15 +9,13 @@ import java.util.function.Function;
 
 public class GSongStore {
     private final ConcurrentHashMap<String, GSongInfo> store = new ConcurrentHashMap<>();
-    private final Function<String, Optional<DownloadQueueItem>> downloadManager;
+    private final ConcurrentHashMap<String, GDownloadState> downloadState = new ConcurrentHashMap<>();
     private final Function<String, SongInfo> songLoader;
 
     public GSongStore(
-            Function<String, SongInfo> songLoader,
-            Function<String, Optional<DownloadQueueItem>> downloadManager
+            Function<String, SongInfo> songLoader
     )
     {
-        this.downloadManager = downloadManager;
         this.songLoader = songLoader;
     }
 
@@ -35,7 +32,6 @@ public class GSongStore {
         return getSongById(new SongIdentifier(songId));
     }
 
-
     public Optional<GSongInfo> getExisting(String songId) {
         return Optional.ofNullable(store.get(songId));
     }
@@ -50,8 +46,10 @@ public class GSongStore {
                 value.id(),
                 key -> {
                     GSongInfo instance = GSongInfo.newInstance(value);
-                    var downloadStatus = this.downloadManager.apply(key);
-                    downloadStatus.ifPresent(item -> instance.setDownloadStateEnum(item.status()));
+                    var downloadStatus = this.downloadState.get(key);
+                    if (downloadStatus != null) {
+                        instance.setDownloadState(downloadStatus);
+                    }
                     return instance;
                 }
         );
@@ -61,5 +59,9 @@ public class GSongStore {
 
     public int size() {
         return store.size();
+    }
+
+    public void setDownloadState(String songId, GDownloadState state) {
+        downloadState.put(songId, state);
     }
 }

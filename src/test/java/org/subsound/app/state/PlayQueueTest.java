@@ -40,10 +40,7 @@ public class PlayQueueTest {
 
         playQueue = new PlayQueue(
                 player,
-                new GSongStore(
-                        key -> this.songInfoFactory.getSongById(key),
-                        key -> Optional.empty()
-                ),
+                new GSongStore(key -> this.songInfoFactory.getSongById(key)),
                 stateChangedRecorder,
                 playRecorder
         );

@@ -1,5 +1,7 @@
 package org.subsound.persistence.database;
 
+import org.subsound.ui.models.GDownloadState;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +19,16 @@ public record DownloadQueueItem(
         Optional<String> checksum
 ) {
     public enum DownloadStatus {
-        PENDING, DOWNLOADING, COMPLETED, FAILED, CACHED
+        PENDING, DOWNLOADING, COMPLETED, FAILED, CACHED;
+
+        public GDownloadState toState() {
+            return switch (this) {
+                case PENDING -> GDownloadState.PENDING;
+                case DOWNLOADING -> GDownloadState.DOWNLOADING;
+                case COMPLETED -> GDownloadState.DOWNLOADED;
+                case CACHED -> GDownloadState.CACHED;
+                case FAILED -> GDownloadState.NONE;
+            };
+        }
     }
 }
