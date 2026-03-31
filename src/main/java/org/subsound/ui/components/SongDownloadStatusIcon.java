@@ -4,7 +4,7 @@ import org.subsound.ui.models.GDownloadState;
 import org.gnome.gtk.Image;
 
 public class SongDownloadStatusIcon extends Image {
-    private static final String ICON_DOWNLOADED = "checkbox-checked-symbolic";
+    private static final String ICON_DOWNLOADED = Icons.CheckmarkCircle.getIconName();
     private static final String ICON_PENDING = Icons.PAUSE.getIconName();
     private static final String ICON_DOWNLOADING = Icons.ContentLoadingSymbolic.getIconName();
 

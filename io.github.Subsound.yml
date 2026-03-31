@@ -55,6 +55,7 @@ modules:
       - install --mode=0644 -D src/main/resources/icons/generated/icon-24.png  /app/share/icons/hicolor/24x24/apps/io.github.Subsound.png
       - install --mode=0644 -D src/main/resources/icons/generated/icon-16.png  /app/share/icons/hicolor/16x16/apps/io.github.Subsound.png
       - install --mode=0644 -D src/main/resources/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.Subsound.svg
+      - install --mode=0644 -D src/main/resources/icons/hicolor/scalable/status/checkmark-circle-symbolic.svg /app/share/icons/hicolor/scalable/status/checkmark-circle-symbolic.svg
       - install --mode=0644 -D io.github.Subsound.desktop  /app/share/applications/io.github.Subsound.desktop
       - install --mode=0644 -D build/resources/main/app/io.github.Subsound.metainfo.xml /app/share/metainfo/io.github.Subsound.metainfo.xml
     only-arches:

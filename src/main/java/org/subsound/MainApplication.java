@@ -51,10 +51,12 @@ import org.gnome.gtk.Shortcut;
 import org.gnome.gtk.ShortcutController;
 import org.gnome.gtk.ShortcutScope;
 import org.gnome.gtk.ShortcutTrigger;
+import org.gnome.gtk.IconTheme;
 import org.gnome.gtk.Widget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.subsound.utils.Utils.mustRead;
@@ -97,6 +99,8 @@ public class MainApplication {
         this.mainProvider = new CssProvider();
         this.mainProvider.loadFromString(cssMain);
         Gtk.styleContextAddProviderForDisplay(Display.getDefault(), this.mainProvider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+        // Register custom icons with the icon theme:
+        registerCustomIcons();
         // force to dark mode as we currently look terrible in light mode:
         StyleManager.getDefault().setColorScheme(ColorScheme.FORCE_DARK);
 
@@ -414,5 +418,16 @@ public class MainApplication {
 
     public void shutdown() {
         this.serverBadge.shutdown();
+    }
+
+    private static void registerCustomIcons() {
+        var iconTheme = IconTheme.getForDisplay(Display.getDefault());
+        // In Flatpak, icons are installed to /app/share/icons/hicolor/ which GTK searches by default.
+        // For local development, add the resources directory as an additional search path:
+        var localPath = Path.of("src/main/resources/icons");
+        if (Files.isDirectory(localPath.resolve("hicolor"))) {
+            iconTheme.addSearchPath(localPath.toAbsolutePath().toString());
+            log.info("registerCustomIcons: added local icon search path: {}", localPath.toAbsolutePath());
+        }
     }
 }

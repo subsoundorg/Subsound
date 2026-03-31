@@ -46,6 +46,7 @@ public enum Icons {
     ListRemove("list-remove-symbolic"),
     FolderDownload("folder-download-symbolic"),
     NetworkError("network-error-symbolic"),
+    CheckmarkCircle("checkmark-circle-symbolic"),
     ;
 
     private final String iconName;

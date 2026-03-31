@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Circle ring: outer radius 7.75, inner radius 6.25, centered at (8,8) -->
+  <path fill="currentColor" fill-rule="evenodd"
+    d="M 8 0.25
+       A 7.75 7.75 0 1 0 8 15.75
+       A 7.75 7.75 0 1 0 8 0.25
+       Z
+       M 8 1.75
+       A 6.25 6.25 0 1 1 8 14.25
+       A 6.25 6.25 0 1 1 8 1.75
+       Z"/>
+  <!-- Checkmark: filled polygon with ~1.2px visual thickness -->
+  <path fill="currentColor"
+    d="M 6.95 10.89
+       L 4.06 8.0
+       L 5.12 6.94
+       L 6.95 8.77
+       L 10.88 4.84
+       L 11.94 5.9
+       Z"/>
+</svg>
