@@ -2,7 +2,6 @@ package org.subsound.integration.servers.subsonic;
 
 import com.google.gson.annotations.SerializedName;
 import okhttp3.HttpUrl;
-import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -38,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Optional.ofNullable;
 import static org.subsound.app.state.AppManager.SERVER_ID;
 import static org.subsound.persistence.ThumbnailCache.toCachePath;
+import static org.subsound.utils.LogUtils.loggingInterceptor;
 
 /**
  * JSON-based Subsonic API client using OkHttpClient.
@@ -70,7 +70,7 @@ public class SubsonicClientV2 implements ServerClient {
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .callTimeout(10, TimeUnit.SECONDS)
-                .addInterceptor(loggingInterceptor())
+                .addInterceptor(loggingInterceptor(log))
                 .build();
 
         // Derive transcode settings from config (same logic as SubsonicClient.createSettings)
@@ -87,8 +87,6 @@ public class SubsonicClientV2 implements ServerClient {
         };
     }
 
-    // ── Auth ──────────────────────────────────────────────────────────────
-
     private String generateSalt() {
         byte[] bytes = new byte[12];
         RANDOM.nextBytes(bytes);
@@ -104,25 +102,6 @@ public class SubsonicClientV2 implements ServerClient {
             throw new RuntimeException(e);
         }
     }
-
-    private static Interceptor loggingInterceptor() {
-        return chain -> {
-            var request = chain.request();
-            log.info("[{} {}] -->", request.method(), request.url());
-            long startNanos = System.nanoTime();
-            try {
-                var response = chain.proceed(request);
-                long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
-                log.info("[{} {}] <-- {} in {}ms", request.method(), request.url(), response.code(), elapsedMs);
-                return response;
-            } catch (Exception e) {
-                log.warn("[{} {}] <-- ERROR: {}", request.method(), request.url(), e.getMessage());
-                throw e;
-            }
-        };
-    }
-
-    // ── URL building ─────────────────────────────────────────────────────
 
     private HttpUrl buildUrl(String path, Map<String, String> extraParams) {
         var salt = generateSalt();
@@ -172,8 +151,6 @@ public class SubsonicClientV2 implements ServerClient {
         }
         return builder.build();
     }
-
-    // ── HTTP helpers ─────────────────────────────────────────────────────
 
     private <T> T fetchJson(String path, Map<String, String> params, Class<T> responseClass) {
         var url = buildUrl(path, params);
@@ -252,8 +229,6 @@ public class SubsonicClientV2 implements ServerClient {
         return parsed;
     }
 
-    // ── JSON DTO base ────────────────────────────────────────────────────
-
     interface HasStatus {
         String getStatus();
         default void checkOk(String path) {
@@ -263,9 +238,6 @@ public class SubsonicClientV2 implements ServerClient {
         }
     }
 
-    // ── JSON DTOs ────────────────────────────────────────────────────────
-
-    // -- Ping / generic response --
     static class PingResponseJson implements HasStatus {
         @SerializedName("subsonic-response")
         PingInner subsonicResponse;
@@ -413,8 +385,6 @@ public class SubsonicClientV2 implements ServerClient {
             List<AlbumID3Json> album
     ) {}
 
-    // ── Response wrappers ────────────────────────────────────────────────
-
     static class GetArtistsResponseJson implements HasStatus {
         @SerializedName("subsonic-response")
         GetArtistsInner subsonicResponse;
@@ -543,8 +513,6 @@ public class SubsonicClientV2 implements ServerClient {
         @Override public String getStatus() { return subsonicResponse.status; }
     }
 
-    // ── Conversion methods ───────────────────────────────────────────────
-
     private SongInfo toSongInfo(ChildJson song) {
         var duration = Duration.ofSeconds(song.duration() != null ? song.duration() : 0);
         var downloadUri = buildUri("/rest/download", Map.of("id", song.id()));
@@ -652,8 +620,6 @@ public class SubsonicClientV2 implements ServerClient {
             return new CoverArt(SERVER_ID, id, coverArtLink, filePath.cachePath().toAbsolutePath(), Optional.of(identifier));
         });
     }
-
-    // ── ServerClient implementation ──────────────────────────────────────
 
     @Override
     public ServerType getServerType() {
@@ -962,8 +928,6 @@ public class SubsonicClientV2 implements ServerClient {
         String apiVersion = inner.version != null ? inner.version : API_VERSION;
         return new ServerInfo(apiVersion, count, folderCount, lastScan, serverVersion);
     }
-
-    // ── Factory ──────────────────────────────────────────────────────────
 
     public static SubsonicClientV2 create(ServerConfig cfg) {
         return new SubsonicClientV2(cfg);

@@ -120,3 +120,5 @@ https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/class.AlertDialog.html
 #### Original Subsonic api spec XSD
 https://www.subsonic.org/pages/inc/api/schema/subsonic-rest-api-1.16.1.xsd
 
+#### Lyrics API
+Uses LRCLIB: https://lrclib.net/docs
