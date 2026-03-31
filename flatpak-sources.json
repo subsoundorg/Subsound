@@ -302,6 +302,27 @@
   },
   {
     "type": "file",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/mockwebserver3/5.3.2/mockwebserver3-5.3.2.jar",
+    "sha512": "5f0cdec3ee67aeff87c4a5953e1afe87a8619ca8765daa4e58a8787ee9c2b625c8b34c9721ecc6c814d8dcb12452ef2818ebe184985102f1e30f20966cbb5b17",
+    "dest": "./offline-repository/com/squareup/okhttp3/mockwebserver3/5.3.2",
+    "dest-filename": "mockwebserver3-5.3.2.jar"
+  },
+  {
+    "type": "file",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/mockwebserver3/5.3.2/mockwebserver3-5.3.2.module",
+    "sha512": "64c0382ac26c473137694c96f390374830031f6139df8d455462e9913eecb1681632ac11d4a92ee028ee2f32fff4eb7fdaff07e152e62e3a71540c98bedb621f",
+    "dest": "./offline-repository/com/squareup/okhttp3/mockwebserver3/5.3.2",
+    "dest-filename": "mockwebserver3-5.3.2.module"
+  },
+  {
+    "type": "file",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/mockwebserver3/5.3.2/mockwebserver3-5.3.2.pom",
+    "sha512": "9196604a9fd6b1b01b078d94b99f35d08b713711774abb830f3078c95a22a8196e5241d2bb2fbaf18f1c2f36d3888ce32308bd9b128724963fdb851c568c0da0",
+    "dest": "./offline-repository/com/squareup/okhttp3/mockwebserver3/5.3.2",
+    "dest-filename": "mockwebserver3-5.3.2.pom"
+  },
+  {
+    "type": "file",
     "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/okhttp-bom/4.12.0/okhttp-bom-4.12.0.pom",
     "sha512": "a22bc6465acd74b47f1dfe9b4f99b687edd4baf549f64b57a7d719878aa9bda5e33aad33bac2e192db88d1067117e8686190829959202d72dc9d5499f3367322",
     "dest": "./offline-repository/com/squareup/okhttp3/okhttp-bom/4.12.0",
