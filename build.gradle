@@ -49,9 +49,9 @@ dependencies {
     implementation 'org.slf4j:jul-to-slf4j:2.0.17'
     implementation 'ch.qos.logback:logback-classic:1.5.26'
 
-    implementation 'com.twelvemonkeys.imageio:imageio-core:3.13.0'
-    implementation 'com.twelvemonkeys.imageio:imageio-metadata:3.13.0'
-    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.13.0'
+    implementation 'com.twelvemonkeys.imageio:imageio-core:3.13.1'
+    implementation 'com.twelvemonkeys.imageio:imageio-metadata:3.13.1'
+    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.13.1'
 
     testImplementation 'org.assertj:assertj-core:3.27.7'
     testImplementation 'junit:junit:4.13.2'
