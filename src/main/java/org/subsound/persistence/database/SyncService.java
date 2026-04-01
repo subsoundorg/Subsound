@@ -184,26 +184,7 @@ public class SyncService {
 
         List<Song> songs = new ArrayList<>();
         for (SongInfo songInfo : albumInfo.songs()) {
-            songs.add(new Song(
-                    songInfo.id(),
-                    serverId,
-                    songInfo.albumId(),
-                    songInfo.album(),
-                    songInfo.title(),
-                    songInfo.year(),
-                    songInfo.artistId(),
-                    songInfo.artist(),
-                    songInfo.duration(),
-                    songInfo.starred(),
-                    songInfo.coverArt().map(ca -> ca.coverArtId()),
-                    java.time.Instant.now(),
-                    songInfo.trackNumber(),
-                    songInfo.discNumber(),
-                    songInfo.bitRate(),
-                    songInfo.size(),
-                    songInfo.genre(),
-                    songInfo.suffix()
-            ));
+            songs.add(Song.from(songInfo, serverId));
 
             // Collect song cover art for thumbnail caching
             songInfo.coverArt().ifPresent(collectedCoverArts::add);

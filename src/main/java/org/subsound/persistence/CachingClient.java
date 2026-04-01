@@ -173,7 +173,12 @@ public class CachingClient implements ServerClient {
         }
         try {
             var playlist = delegate.getPlaylist(playlistId);
-            persistPlaylist(playlist);
+            var existing = dbService.getPlaylistById(playlistId);
+            boolean changed = existing.isEmpty()
+                    || !existing.get().updatedAt().equals(playlist.changedAt());
+            if (changed) {
+                persistPlaylist(playlist);
+            }
             return playlist;
         } catch (Exception e) {
             detectOffline(e);
@@ -193,20 +198,21 @@ public class CachingClient implements ServerClient {
                 Duration.ZERO,
                 playlist.coverArtId().map(CoverArt::coverArtId),
                 playlist.created(),
-                Instant.now()
+                playlist.changedAt()
         );
         dbService.upsertPlaylist(row);
     }
     private void persistPlaylist(Playlist playlist) {
+        var serverUUID = UUID.fromString(this.serverId);
         var row = new PlaylistRow(
                 playlist.id(),
-                UUID.fromString(this.serverId),
+                serverUUID,
                 playlist.name(),
                 playlist.songCount(),
                 playlist.songs().stream().map(SongInfo::duration).reduce(Duration.ZERO, Duration::plus),
                 playlist.coverArtId().map(CoverArt::coverArtId),
                 playlist.created(),
-                Instant.now()
+                playlist.changedAt()
         );
         Utils.doAsync(() -> {
             try {
@@ -215,8 +221,9 @@ public class CachingClient implements ServerClient {
 
                 var playlistSongs = playlist.songs();
                 for (int i = 0; i < playlistSongs.size(); i++) {
-                    var song = playlistSongs.get(i);
-                    dbService.insertPlaylistSong(playlist.id(), song.id(), i);
+                    var songInfo = playlistSongs.get(i);
+                    dbService.insert(Song.from(songInfo, serverUUID));
+                    dbService.insertPlaylistSong(playlist.id(), songInfo.id(), i);
                 }
             } catch (Exception e) {
                 log.warn("Failed to persist playlist {} to database", playlist.id(), e);

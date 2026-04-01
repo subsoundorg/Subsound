@@ -1,5 +1,8 @@
 package org.subsound.persistence.database;
 
+import org.subsound.integration.ServerClient.CoverArt;
+import org.subsound.integration.ServerClient.SongInfo;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -25,4 +28,26 @@ public record Song(
         String genre,
         String suffix
 ) {
+    public static Song from(SongInfo songInfo, UUID serverId) {
+        return new Song(
+                songInfo.id(),
+                serverId,
+                songInfo.albumId(),
+                songInfo.album(),
+                songInfo.title(),
+                songInfo.year(),
+                songInfo.artistId(),
+                songInfo.artist(),
+                songInfo.duration(),
+                songInfo.starred(),
+                songInfo.coverArt().map(CoverArt::coverArtId),
+                songInfo.created().orElse(Instant.now()),
+                songInfo.trackNumber(),
+                songInfo.discNumber(),
+                songInfo.bitRate(),
+                songInfo.size(),
+                songInfo.genre(),
+                songInfo.suffix()
+        );
+    }
 }
