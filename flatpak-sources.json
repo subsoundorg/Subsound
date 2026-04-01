@@ -1856,17 +1856,17 @@
   },
   {
     "type": "file",
-    "url": "https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.21.0/mockito-core-5.21.0.jar",
-    "sha512": "422b0092ed189e2968289c813c7f6ed3b378b7f1d700b6ff8ceea74aee8ad0771c0f755290f59697c25ea7cdb949827a5cb5269e1433e31cfa7850b17da678db",
-    "dest": "./offline-repository/org/mockito/mockito-core/5.21.0",
-    "dest-filename": "mockito-core-5.21.0.jar"
+    "url": "https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar",
+    "sha512": "5e6330c84efbdbebeeb2a84b1a0c036ecc9783ed21577f0e8d5cb186a58d2c06a009c36c4c22a8a2263d790bffe3d12e300c597a748860afad8b42dcfd810bfc",
+    "dest": "./offline-repository/org/mockito/mockito-core/5.23.0",
+    "dest-filename": "mockito-core-5.23.0.jar"
   },
   {
     "type": "file",
-    "url": "https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.21.0/mockito-core-5.21.0.pom",
-    "sha512": "20d40c9eff058b12cdf9babf90a13eca8fd53de8735f7d048802f47a61d61e67386d6e9ee51fa3d3fe763d5a05ffea8483e3c13e8dd668876c45d4d3ce08a974",
-    "dest": "./offline-repository/org/mockito/mockito-core/5.21.0",
-    "dest-filename": "mockito-core-5.21.0.pom"
+    "url": "https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.pom",
+    "sha512": "526c89edcc78da512661431367a91466fb544e3d0d6156f9f89411dcb71ddb294d1b325f5ba7f50e711ace1f073aac25157d98df5217764300de08b6ef224735",
+    "dest": "./offline-repository/org/mockito/mockito-core/5.23.0",
+    "dest-filename": "mockito-core-5.23.0.pom"
   },
   {
     "type": "file",
