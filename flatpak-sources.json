@@ -281,24 +281,24 @@
   },
   {
     "type": "file",
-    "url": "https://repo.maven.apache.org/maven2/com/softwaremill/jox/channels/1.0.0/channels-1.0.0.jar",
-    "sha512": "db6667f8d1817327536c6f02bce29c8b03aad8dae04094030e499ab639ad47a1d2ad2492c4bc066ba743a019b38b8147ef58e2dd33fba5a1d6d5417a338b9c38",
-    "dest": "./offline-repository/com/softwaremill/jox/channels/1.0.0",
-    "dest-filename": "channels-1.0.0.jar"
+    "url": "https://repo.maven.apache.org/maven2/com/softwaremill/jox/channels/1.1.2/channels-1.1.2.jar",
+    "sha512": "5c70f9da76d87364e6a9cf10b7efb6e670d56f0fcb87b685f75cc2ba94d65509f7e21c393523cab238e20176c6d8dcc824c3fb1c4b905a0ce7683afe447977d9",
+    "dest": "./offline-repository/com/softwaremill/jox/channels/1.1.2",
+    "dest-filename": "channels-1.1.2.jar"
   },
   {
     "type": "file",
-    "url": "https://repo.maven.apache.org/maven2/com/softwaremill/jox/channels/1.0.0/channels-1.0.0.pom",
-    "sha512": "5b562125facb68812b00b73796d5146eac00c1842a0e715233b0ff88569fdab29bed2f2cff5dfa40ba77c95c0f3319cc3c9c0eeb22d0bd1423f0d6e97d9bd394",
-    "dest": "./offline-repository/com/softwaremill/jox/channels/1.0.0",
-    "dest-filename": "channels-1.0.0.pom"
+    "url": "https://repo.maven.apache.org/maven2/com/softwaremill/jox/channels/1.1.2/channels-1.1.2.pom",
+    "sha512": "b9669cb635231ee871e1a15cfe0fce990ab1fb91251af073732d14126bb6a6ddefd44a6e527cac2bae212158122f2b5b135d349d04cc26c8c163f7544ad6a1ef",
+    "dest": "./offline-repository/com/softwaremill/jox/channels/1.1.2",
+    "dest-filename": "channels-1.1.2.pom"
   },
   {
     "type": "file",
-    "url": "https://repo.maven.apache.org/maven2/com/softwaremill/jox/parent/1.0.0/parent-1.0.0.pom",
-    "sha512": "12b0dd3682c89f534c3f17aa120b61776e2928fcf6210565a4dcaf67edfac514c4538b167b2f0189bbc8c28cdfaa5feab58d9aaf9ccada02850bd46e81d860b8",
-    "dest": "./offline-repository/com/softwaremill/jox/parent/1.0.0",
-    "dest-filename": "parent-1.0.0.pom"
+    "url": "https://repo.maven.apache.org/maven2/com/softwaremill/jox/parent/1.1.2/parent-1.1.2.pom",
+    "sha512": "3bff837dfb9e7490791e860fa91bd1e2c1b8866bdeda19cf8ba051a94ddd03c58a6ac1b02e14d72c11f1577776551f3a78a3a06459389c990668b1c1e501c3a2",
+    "dest": "./offline-repository/com/softwaremill/jox/parent/1.1.2",
+    "dest-filename": "parent-1.1.2.pom"
   },
   {
     "type": "file",
