@@ -220,7 +220,7 @@ public class AppManager {
         if (serverOpt.isPresent()) {
             // Server found in DB — build config from it
             var server = serverOpt.get();
-            var password = resolvePassword(secretService, server.id().toString(), server.username());
+            var password = resolvePassword(secretService, server.id().toString(), server.username(), config);
             config.serverConfig = buildServerConfig(config.dataDir, server, password);
             var serverClient = ServerClient.create(config.serverConfig);
             this.client.set(wrapWithCaching(serverClient));
@@ -228,7 +228,7 @@ public class AppManager {
             // Legacy JSON config — migrate to DB
             log.info("Migrating legacy server config to database for serverId={}", config.serverId);
             var legacy = config.legacyServerConfig;
-            var password = resolvePassword(secretService, legacy.id(), legacy.username());
+            var password = resolvePassword(secretService, legacy.id(), legacy.username(), config);
             // Also check legacy password from JSON (may be plain-text in old format)
             if (password == null && legacy.password() != null && !legacy.password().isBlank()) {
                 password = legacy.password();
@@ -272,13 +272,15 @@ public class AppManager {
     private static @org.jspecify.annotations.Nullable String resolvePassword(
             org.subsound.integration.platform.secret.SecretService secretService,
             String serverId,
-            String username
+            String username,
+            Config config
     ) {
         var creds = secretService.lookupCredentialsSync(serverId);
         if (creds != null) {
             return creds.password();
         }
-        return null;
+        // Fallback: password stored in config file when keyring is unavailable (e.g. macOS)
+        return config.fallbackPassword;
     }
 
     private static Config.ServerConfig buildServerConfig(Path dataDir, Server server, @org.jspecify.annotations.Nullable String password) {

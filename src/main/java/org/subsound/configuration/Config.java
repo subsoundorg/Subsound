@@ -37,6 +37,9 @@ public class Config {
     // Server ID loaded from JSON — used by AppManager to look up server from DB
     public @Nullable String serverId;
 
+    // Password loaded from config file — fallback when keyring (libsecret) is unavailable (e.g. macOS)
+    public @Nullable String fallbackPassword;
+
     // Legacy server config data read from old JSON format, used for one-time migration to DB
     public @Nullable LegacyServerConfig legacyServerConfig;
 
@@ -72,6 +75,10 @@ public class Config {
         d.windowWidth = this.windowWidth;
         d.windowHeight = this.windowHeight;
         d.serverId = this.serverId;
+        // When keyring is unavailable (e.g. macOS), store password in config file as fallback
+        if (!secretService.isAvailable() && this.serverConfig != null) {
+            d.password = this.serverConfig.password();
+        }
         return d;
     }
 
@@ -122,6 +129,7 @@ public class Config {
                             if (cfg.serverId != null && !cfg.serverId.isBlank()) {
                                 config.serverId = cfg.serverId;
                                 config.onboarding = OnboardingState.DONE;
+                                config.fallbackPassword = cfg.password;
                             }
                             // Legacy format: full server object in JSON
                             else if (cfg.server != null) {
@@ -159,6 +167,10 @@ public class Config {
         // New format: only stores serverId
         @SerializedName("serverId")
         public String serverId;
+
+        // Fallback password storage when keyring is unavailable (e.g. macOS)
+        @SerializedName("password")
+        public @Nullable String password;
 
         // Legacy: full server object (read-only for migration)
         @SerializedName("server")
