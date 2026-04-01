@@ -19,7 +19,6 @@ import org.subsound.integration.ServerClient.PlaylistRemoveSongRequest;
 import org.subsound.integration.ServerClient.PlaylistRenameRequest;
 import org.subsound.integration.ServerClient.SongInfo;
 import org.subsound.integration.ServerClient.TranscodeFormat;
-import org.subsound.integration.ServerClient.TranscodedStream;
 import org.subsound.persistence.CachingClient;
 import org.subsound.persistence.DownloadManager;
 import org.subsound.persistence.ScrobbleService;
@@ -137,10 +136,7 @@ public class AppManager {
         );
         this.songCache = new SongCache(
                 config.dataDir,
-                transcodeInfo -> {
-                    var uri = this.useClient(c -> c.getStreamUri(transcodeInfo.songId()));
-                    return new TranscodedStream(transcodeInfo.songId(), uri);
-                }
+                transcodeInfo -> this.useClient(c -> c.openStream(transcodeInfo))
         );
         this.gSongStore = new GSongStore(
                 songId -> this.useClient(c -> c.getSong(songId))
@@ -169,6 +165,9 @@ public class AppManager {
 
         // Load server configuration from DB (or migrate from legacy JSON)
         this.client = new AtomicReference<>();
+        this.thumbnailCache.setDownloader(
+                (coverArt, maxSize) -> this.useClient(c -> c.downloadCoverArt(coverArt, maxSize))
+        );
         initServerConfig(config);
 
         player.onStateChanged(next -> {

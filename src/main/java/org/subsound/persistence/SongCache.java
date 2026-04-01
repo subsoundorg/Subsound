@@ -1,8 +1,7 @@
 package org.subsound.persistence;
 
-import org.subsound.integration.ServerClient.TranscodedStream;
+import org.subsound.integration.ServerClient.StreamResponse;
 import org.subsound.integration.ServerClient.TranscodeInfo;
-import org.subsound.utils.javahttp.LoggingHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,12 +9,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -28,14 +23,13 @@ public class SongCache implements SongCacheChecker {
     private final Logger log = LoggerFactory.getLogger(SongCache.class);
 
     private final Path root;
-    private final HttpClient client = new LoggingHttpClient(HttpClient.newBuilder().build());
-    private final Function<TranscodeInfo, TranscodedStream> streamResolver;
+    private final Function<TranscodeInfo, StreamResponse> streamOpener;
 
     public SongCache(
-            Path cacheDir
-            , Function<TranscodeInfo, TranscodedStream> streamResolver
+            Path cacheDir,
+            Function<TranscodeInfo, StreamResponse> streamOpener
     ) {
-        this.streamResolver = streamResolver;
+        this.streamOpener = streamOpener;
         var f = cacheDir.toFile();
         if (!f.exists()) {
             if (!f.mkdirs()) {
@@ -76,7 +70,6 @@ public class SongCache implements SongCacheChecker {
     }
 
     public LoadSongResult getSong(CacheSong songData) {
-        // TODO: cache the cache check??
         // Check cache
         var cachePath = this.cachePath(songData);
         var cacheFile = cachePath.cachePath.toAbsolutePath().toFile();
@@ -90,9 +83,6 @@ public class SongCache implements SongCacheChecker {
             return new LoadSongResult(CacheResult.HIT, cacheFile.toURI());
         }
 
-        var streamUriA = streamResolver.apply(songData.transcodeInfo);
-        var streamUri = streamUriA.streamUri();
-
         cachePath.tmpFilePath.getParent().toFile().mkdirs();
         var cacheTmpFile = cachePath.tmpFilePath.toAbsolutePath().toFile();
         if (cacheTmpFile.exists()) {
@@ -104,22 +94,21 @@ public class SongCache implements SongCacheChecker {
             throw new RuntimeException(e);
         }
 
-        try {
+        try (var streamResponse = streamOpener.apply(songData.transcodeInfo)) {
             long estimatedContentSize = songData.transcodeInfo.estimateContentSize();
             long downloadSize = downloadTo(
-                    streamUri,
+                    streamResponse,
                     new FileOutputStream(cacheTmpFile),
                     songData.originalSize,
                     estimatedContentSize,
                     songData.progressHandler
             );
-            if (downloadSize != songData.originalSize) {
-                //log.info("download size={} does not equal originalSize={}", downloadSize, songData.originalSize);
-            }
             // rename tmp file to target file.
             cacheTmpFile.renameTo(cacheFile);
             return new LoadSongResult(CacheResult.MISS, cacheFile.toURI());
         } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -129,57 +118,38 @@ public class SongCache implements SongCacheChecker {
     }
 
     private long downloadTo(
-            URI uri,
+            StreamResponse streamResponse,
             OutputStream output,
             long originalSize,
             long estimatedContentSize,
             DownloadProgressHandler ph
     ) {
-        var req = HttpRequest.newBuilder().uri(uri).GET().build();
-        try {
-            HttpResponse<InputStream> res = this.client.send(req, HttpResponse.BodyHandlers.ofInputStream());
-            if (res.statusCode() != 200) {
-                throw new RuntimeException("error: statusCode=%d uri=%s".formatted(res.statusCode(), uri.toString()));
-            }
+        long expectedSize = streamResponse.contentLength() > 0
+                ? streamResponse.contentLength()
+                : estimatedContentSize;
 
-            String contentType = res.headers().firstValue("content-type").orElse("");
-            if (contentType.isEmpty() || contentType.contains("xml") || contentType.contains("html") || contentType.contains("json")) {
-                // response does not look like binary music data...
-                throw new RuntimeException("error: statusCode=%d uri=%s contentType=%s".formatted(res.statusCode(), uri.toString(), contentType));
-            }
+        log.info("estimateContentLength: originalSize={} expectedSize={}", originalSize, expectedSize);
 
-            long estimatedSizeBytes = estimatedContentSize;
-//            long estimatedSizeBytes = res.headers()
-// X-Content-Duration is set by navidrome on HEAD and GET requests to the /rest/stream endpoint:
-//                    .firstValue("X-Content-Duration")
-//                    .map(Double::parseDouble)
-//                    .map(durationSeconds -> estimateContentLength(durationSeconds, bitRate))
-//                    .orElse(originalSize);
-            long expectedSize = res.headers().firstValueAsLong("Content-Length").orElse(estimatedSizeBytes);
-
-            log.info("estimateContentLength: originalSize={} expectedSize={}", originalSize, expectedSize);
-
-            try (var stream = res.body()) {
-                byte[] buffer = new byte[8192];
-                long sum = 0L;
-                int n;
-                while (-1 != (n = stream.read(buffer))) {
-                    output.write(buffer, 0, n);
-                    sum += n;
-                    if (sum > expectedSize) {
-                        expectedSize = sum;
-                    }
-                    ph.progress(expectedSize, sum);
+        try (var stream = streamResponse.inputStream()) {
+            byte[] buffer = new byte[8192];
+            long sum = 0L;
+            int n;
+            while (-1 != (n = stream.read(buffer))) {
+                output.write(buffer, 0, n);
+                sum += n;
+                if (sum > expectedSize) {
+                    expectedSize = sum;
                 }
-
-                // When transcoding, Content-Length is only an estimate.
-                // Make sure we finish the progressbar by flushing with the final size before exiting:
-                var finalSize = Math.max(expectedSize, sum);
-                log.info("sending final flush: originalSize={} expectedSize={} estimatedSizeBytes={} finalSize={}", originalSize, expectedSize, estimatedSizeBytes, finalSize);
-                ph.progress(finalSize, finalSize);
-                return sum;
+                ph.progress(expectedSize, sum);
             }
-        } catch (IOException | InterruptedException e) {
+
+            // When transcoding, Content-Length is only an estimate.
+            // Make sure we finish the progressbar by flushing with the final size before exiting:
+            var finalSize = Math.max(expectedSize, sum);
+            log.info("sending final flush: originalSize={} expectedSize={} estimatedSizeBytes={} finalSize={}", originalSize, expectedSize, estimatedContentSize, finalSize);
+            ph.progress(finalSize, finalSize);
+            return sum;
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

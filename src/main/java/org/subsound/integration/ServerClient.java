@@ -7,6 +7,7 @@ import io.soabase.recordbuilder.core.RecordBuilder;
 import io.soabase.recordbuilder.core.RecordBuilderFull;
 import org.subsonic.restapi.AlbumID3;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -39,6 +40,8 @@ public interface ServerClient {
     SearchResult search(String query);
     void scrobble(ScrobbleRequest req);
     URI getStreamUri(String songId);
+    StreamResponse openStream(TranscodeInfo transcodeInfo);
+    CoverArtResponse downloadCoverArt(CoverArt coverArt, int maxSize);
     ScanStatus scanStatus();
     ScanStatus startScan();
 
@@ -80,6 +83,20 @@ public interface ServerClient {
             return Utils.estimateContentLength(duration.getSeconds(), estimatedBitRate);
         }
     }
+
+    record StreamResponse(
+            String songId,
+            InputStream inputStream,
+            long contentLength,   // -1 when unknown
+            String contentType
+    ) implements AutoCloseable {
+        @Override
+        public void close() throws Exception {
+            inputStream.close();
+        }
+    }
+
+    record CoverArtResponse(byte[] data, String contentType) {}
 
     @RecordBuilderFull
     record SongInfo(

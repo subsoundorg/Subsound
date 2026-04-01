@@ -20,7 +20,9 @@ import org.subsound.utils.javahttp.TextUtils;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -64,6 +66,7 @@ public class SubsonicClientV2 implements ServerClient {
     private final String streamFormat;  // "" = source
     private final int streamBitRate;    // 0 = source
     private final OkHttpClient httpClient;
+    private final OkHttpClient streamingHttpClient;
 
     public SubsonicClientV2(ServerConfig cfg) {
         this.serverId = cfg.id();
@@ -83,6 +86,10 @@ public class SubsonicClientV2 implements ServerClient {
         }
 
         this.httpClient = httpBuilder.build();
+        this.streamingHttpClient = this.httpClient.newBuilder()
+                .readTimeout(5, TimeUnit.MINUTES)
+                .callTimeout(10, TimeUnit.MINUTES)
+                .build();
 
         // Derive transcode settings from config (same logic as SubsonicClient.createSettings)
         TranscodeFormat fmt = cfg.audioFormat() != null ? cfg.audioFormat() : TranscodeFormat.source;
@@ -962,6 +969,71 @@ public class SubsonicClientV2 implements ServerClient {
         Optional<String> serverVersion = inner.serverVersion != null ? Optional.of(inner.serverVersion) : Optional.empty();
         String apiVersion = inner.version != null ? inner.version : API_VERSION;
         return new ServerInfo(apiVersion, count, folderCount, lastScan, serverVersion);
+    }
+
+    @Override
+    public StreamResponse openStream(TranscodeInfo transcodeInfo) {
+        var params = new java.util.LinkedHashMap<String, String>();
+        params.put("id", transcodeInfo.songId());
+        if (streamBitRate > 0) {
+            params.put("maxBitRate", String.valueOf(streamBitRate));
+        }
+        if (!streamFormat.isEmpty()) {
+            params.put("format", streamFormat);
+        }
+        var url = buildUrl("/rest/stream", params);
+        var request = new Request.Builder().url(url).get().build();
+        try {
+            Response response = streamingHttpClient.newCall(request).execute();
+            if (!response.isSuccessful()) {
+                response.close();
+                throw new RuntimeException("HTTP %d from /rest/stream for songId=%s".formatted(
+                        response.code(), transcodeInfo.songId()));
+            }
+            String contentType = response.header("Content-Type", "");
+            if (contentType.isEmpty() || contentType.contains("xml") || contentType.contains("html") || contentType.contains("json")) {
+                response.close();
+                throw new RuntimeException("Unexpected content-type=%s from /rest/stream for songId=%s".formatted(
+                        contentType, transcodeInfo.songId()));
+            }
+            long contentLength = response.body() != null ? response.body().contentLength() : -1;
+            InputStream wrappedStream = new FilterInputStream(response.body().byteStream()) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        response.close();
+                    }
+                }
+            };
+            return new StreamResponse(transcodeInfo.songId(), wrappedStream, contentLength, contentType);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to open stream for songId=%s".formatted(transcodeInfo.songId()), e);
+        }
+    }
+
+    @Override
+    public CoverArtResponse downloadCoverArt(CoverArt coverArt, int maxSize) {
+        var url = HttpUrl.get(coverArt.coverArtLink()).newBuilder()
+                .setQueryParameter("size", "%d".formatted(maxSize))
+                .build();
+        var request = new Request.Builder().url(url).get().build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("HTTP %d fetching coverArt=%s".formatted(
+                        response.code(), coverArt.coverArtId()));
+            }
+            String contentType = response.header("Content-Type", "image/webp");
+            if (contentType.contains("xml") || contentType.contains("html") || contentType.contains("json")) {
+                throw new RuntimeException("Unexpected content-type=%s for coverArt=%s".formatted(
+                        contentType, coverArt.coverArtId()));
+            }
+            byte[] data = response.body() != null ? response.body().bytes() : new byte[0];
+            return new CoverArtResponse(data, contentType);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to download coverArt=%s".formatted(coverArt.coverArtId()), e);
+        }
     }
 
     public static SubsonicClientV2 create(ServerConfig cfg) {

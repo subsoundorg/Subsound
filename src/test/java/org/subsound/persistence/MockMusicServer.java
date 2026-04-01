@@ -1,10 +1,13 @@
 package org.subsound.persistence;
 
+import org.subsound.integration.ServerClient.StreamResponse;
+import org.subsound.integration.ServerClient.TranscodeInfo;
 import org.subsound.integration.ServerClient.TranscodedStream;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import okhttp3.HttpUrl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -84,6 +87,19 @@ public class MockMusicServer {
             String songId,
             byte[] data
     ){}
+
+    public StreamResponse openStream(TranscodeInfo transcodeInfo) {
+        var song = songIdMapping.get(transcodeInfo.songId());
+        if (song == null) {
+            throw new RuntimeException("Unknown song: " + transcodeInfo.songId());
+        }
+        return new StreamResponse(
+                transcodeInfo.songId(),
+                new ByteArrayInputStream(song.data),
+                song.data.length,
+                "audio/mpeg"
+        );
+    }
 
     public TranscodedStream getTranscodeStream(String songId) {
         var song = songIdMapping.get(songId);

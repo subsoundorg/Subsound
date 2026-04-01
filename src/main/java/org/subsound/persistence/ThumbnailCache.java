@@ -2,18 +2,17 @@ package org.subsound.persistence;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import okhttp3.HttpUrl;
 import org.gnome.gdk.Texture;
 import org.gnome.gdkpixbuf.Pixbuf;
 import org.javagi.base.Out;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.subsound.integration.ServerClient.CoverArt;
+import org.subsound.integration.ServerClient.CoverArtResponse;
 import org.subsound.utils.ImageUtils;
 import org.subsound.utils.ImageUtils.ColorValue;
 import org.subsound.utils.ThumbHashUtils;
 import org.subsound.utils.Utils;
-import org.subsound.utils.javahttp.LoggingHttpClient;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -21,9 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -33,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 
 import static org.subsound.persistence.SongCache.joinPath;
 import static org.subsound.utils.Utils.sha256;
@@ -47,9 +44,9 @@ public class ThumbnailCache {
     private static final Logger log = LoggerFactory.getLogger(ThumbnailCache.class);
 
     private final Path root;
-    private final HttpClient client = new LoggingHttpClient(HttpClient.newBuilder().build());
     // semaphore limits concurrency a little, we could send 1000s request concurrently on page load of a e.g. starred page:
     private final Semaphore semaphore = new Semaphore(4);
+    private volatile BiFunction<CoverArt, Integer, CoverArtResponse> downloader;
     private final Cache<PixbufCacheKey, CachedTexture> pixbufCache = Caffeine.newBuilder().maximumSize(1000).recordStats().build();
     private final int maxArtworkSize = 1024;
 
@@ -62,6 +59,10 @@ public class ThumbnailCache {
 
     public ThumbnailCache(Path root) {
         this.root = root;
+    }
+
+    public void setDownloader(BiFunction<CoverArt, Integer, CoverArtResponse> downloader) {
+        this.downloader = downloader;
     }
 
     public record CachedTexture(
@@ -130,29 +131,12 @@ public class ThumbnailCache {
                         return new ThumbLoaded(cachePath);
                     }
 
-                    var link = coverArt.coverArtLink();
-                    var scheme = link.getScheme();
-                    if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) {
-                        throw new RuntimeException("cover art not cached on disk and not downloadable: coverArtId=" + coverArt.coverArtId() + " path=" + cacheAbsPath);
+                    var dl = this.downloader;
+                    if (dl == null) {
+                        throw new IllegalStateException("ThumbnailCache downloader not set, cannot fetch: " + coverArt.coverArtId());
                     }
-                    var url = HttpUrl.get(link).newBuilder()
-                            .setQueryParameter("size", "%d".formatted(this.maxArtworkSize))
-                            //.setQueryParameter("square", "true")
-                            .build();
-
-                    var req = HttpRequest.newBuilder().GET().uri(url.uri()).build();
-                    var bodyHandler = HttpResponse.BodyHandlers.ofByteArray();
-
-                    HttpResponse<byte[]> res = this.client.send(req, bodyHandler);
-                    if (res.statusCode() != 200) {
-                        throw new RuntimeException("error loading: status=" + res.statusCode() + " link=" + link);
-                    }
-                    String contentType = res.headers().firstValue("content-type").orElse("image/webp");
-                    if (contentType.isEmpty() || contentType.contains("xml") || contentType.contains("html") || contentType.contains("json")) {
-                        throw new RuntimeException("error: statusCode=%d uri=%s contentType=%s".formatted(res.statusCode(), link, contentType));
-                    }
-
-                    byte[] body = res.body();
+                    var response = dl.apply(coverArt, this.maxArtworkSize);
+                    byte[] body = response.data();
                     Files.createDirectories(cacheAbsPath.getParent());
 
                     var tmpFilePath = cachePath.tmpFilePath().toAbsolutePath();

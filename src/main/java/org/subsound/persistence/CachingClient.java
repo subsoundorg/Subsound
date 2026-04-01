@@ -381,6 +381,16 @@ public class CachingClient implements ServerClient {
     }
 
     @Override
+    public StreamResponse openStream(TranscodeInfo transcodeInfo) {
+        return delegate.openStream(transcodeInfo);
+    }
+
+    @Override
+    public CoverArtResponse downloadCoverArt(CoverArt coverArt, int maxSize) {
+        return delegate.downloadCoverArt(coverArt, maxSize);
+    }
+
+    @Override
     public ScanStatus scanStatus() {
         return delegate.scanStatus();
     }
