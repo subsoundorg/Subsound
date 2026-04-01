@@ -265,10 +265,18 @@ public class AppManager {
     }
 
     public <T> T useClient(Function<ServerClient, T> useFunc) {
-        return useFunc.apply(this.client.get());
+        var c = this.client.get();
+        if (c == null) {
+            throw new IllegalStateException("No server client configured");
+        }
+        return useFunc.apply(c);
     }
     public void useClient1(Consumer<ServerClient> useFunc) {
-        useFunc.accept(this.client.get());
+        var c = this.client.get();
+        if (c == null) {
+            throw new IllegalStateException("No server client configured");
+        }
+        useFunc.accept(c);
     }
 
     public Config getConfig() {

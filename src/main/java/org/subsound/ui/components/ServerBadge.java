@@ -268,6 +268,9 @@ public class ServerBadge extends Box implements AppManager.StateListener {
 
     private ServerStatus fetchServerStatus() {
         var usernameOpt = appManager.getConfig().getServerConfig().map(cfg -> cfg.username());
+        if (appManager.getConfig().getServerConfig().isEmpty()) {
+            return new ServerStatus(usernameOpt, false, null);
+        }
         try {
             boolean online = appManager.useClient(ServerClient::testConnection);
             if (online) {

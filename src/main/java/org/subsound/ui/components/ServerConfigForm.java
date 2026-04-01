@@ -117,7 +117,6 @@ public class ServerConfigForm extends Box {
     }
 
     private void testConnection() {
-        //this.testButton.setCssClasses(none.add());
         this.saveButton.setSensitive(false);
         var dataOpt = getFormData();
         dataOpt.ifPresent(data -> Utils.doAsync(() -> {

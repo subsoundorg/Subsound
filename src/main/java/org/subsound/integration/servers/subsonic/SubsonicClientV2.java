@@ -632,6 +632,7 @@ public class SubsonicClientV2 implements ServerClient {
             var parsed = fetchJson("/rest/ping", Map.of(), PingResponseJson.class);
             return "ok".equalsIgnoreCase(parsed.subsonicResponse.status);
         } catch (Exception e) {
+            log.warn("testConnection failed: {}", e.getMessage());
             return false;
         }
     }
