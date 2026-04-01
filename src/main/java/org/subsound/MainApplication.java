@@ -284,7 +284,8 @@ public class MainApplication {
                         cfg.serverConfig.type(),
                         cfg.serverConfig.url(),
                         cfg.serverConfig.username(),
-                        cfg.serverConfig.password()
+                        cfg.serverConfig.password(),
+                        cfg.serverConfig.tlsSkipVerify()
                 );
                 var transcodeSettings = cfg.serverConfig != null
                         ? new ServerClient.TranscodeSettings(cfg.serverConfig.audioFormat(), cfg.serverConfig.audioBitrate())

@@ -32,7 +32,10 @@ public class DatabaseServiceTest {
                 ServerType.SUBSONIC,
                 "http://server1.com",
                 "user1",
-                now
+                now,
+                false,
+                null,
+                null
         );
 
         Server server2 = new Server(
@@ -41,7 +44,10 @@ public class DatabaseServiceTest {
                 ServerType.SUBSONIC,
                 "http://server2.com",
                 "user2",
-                now
+                now,
+                false,
+                null,
+                null
         );
 
         // Test insert

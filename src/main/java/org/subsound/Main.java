@@ -3,7 +3,6 @@ package org.subsound;
 import org.subsound.app.state.AppManager;
 import org.subsound.configuration.Config;
 import org.subsound.configuration.constants.Constants;
-import org.subsound.integration.ServerClient;
 import org.subsound.integration.platform.secret.SecretService;
 import org.subsound.integration.platform.mpriscontroller.ArtworkHttpServer;
 import org.subsound.integration.platform.mpriscontroller.MPrisController;
@@ -56,11 +55,10 @@ public class Main {
         var secretService = SecretService.create();
         this.config = Config.createDefault(secretService);
         var thumbnailCache = new ThumbnailCache(config.dataDir);
-        var client = Optional.ofNullable(config.serverConfig).map(ServerClient::create);
         var player = new PlaybinPlayer();
         var mainAppRef = new AtomicReference<MainApplication>();
         var app = new Application(Constants.APP_ID, ApplicationFlags.DEFAULT_FLAGS);
-        this.appManager = new AppManager(this.config, player, thumbnailCache, client, app::quit);
+        this.appManager = new AppManager(this.config, player, thumbnailCache, app::quit);
         this.artworkServer = new ArtworkHttpServer(thumbnailCache);
         this.mprisController = new MPrisController(appManager, artworkServer);
         Utils.doAsync(() -> {

@@ -17,12 +17,18 @@ import org.subsound.integration.ServerClient.ObjectIdentifier.PlaylistIdentifier
 import org.subsound.utils.Utils;
 import org.subsound.utils.javahttp.TextUtils;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.KeyManagementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -66,12 +72,17 @@ public class SubsonicClientV2 implements ServerClient {
         this.username = cfg.username();
         this.password = cfg.password();
 
-        this.httpClient = new OkHttpClient.Builder()
+        var httpBuilder = new OkHttpClient.Builder()
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .callTimeout(10, TimeUnit.SECONDS)
-                .addInterceptor(loggingInterceptor(log))
-                .build();
+                .addInterceptor(loggingInterceptor(log));
+
+        if (cfg.tlsSkipVerify()) {
+            configureTrustAllCerts(httpBuilder);
+        }
+
+        this.httpClient = httpBuilder.build();
 
         // Derive transcode settings from config (same logic as SubsonicClient.createSettings)
         TranscodeFormat fmt = cfg.audioFormat() != null ? cfg.audioFormat() : TranscodeFormat.source;
@@ -85,6 +96,29 @@ public class SubsonicClientV2 implements ServerClient {
             case TranscodeBitrate.SourceQuality _ -> 0;
             case TranscodeBitrate.MaximumBitrate(var kbps) -> kbps;
         };
+    }
+
+    private static void configureTrustAllCerts(OkHttpClient.Builder builder) {
+        try {
+            X509TrustManager trustAllManager = new X509TrustManager() {
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+            };
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[]{trustAllManager}, new SecureRandom());
+            builder.sslSocketFactory(sslContext.getSocketFactory(), trustAllManager);
+            builder.hostnameVerifier((hostname, session) -> true);
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new RuntimeException("Failed to configure TLS skip verify", e);
+        }
     }
 
     private String generateSalt() {

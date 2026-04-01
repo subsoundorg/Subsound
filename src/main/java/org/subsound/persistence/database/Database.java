@@ -119,6 +119,8 @@ public class Database {
         migrations.add(new MigrationV9());
         migrations.add(new MigrationV10());
         migrations.add(new MigrationV11());
+        migrations.add(new MigrationV12());
+        migrations.add(new MigrationV13());
         return migrations;
     }
 
@@ -402,6 +404,31 @@ public class Database {
                 stmt.executeUpdate("INSERT INTO playlist_songs_new SELECT * FROM playlist_songs");
                 stmt.executeUpdate("DROP TABLE playlist_songs");
                 stmt.executeUpdate("ALTER TABLE playlist_songs_new RENAME TO playlist_songs");
+            }
+        }
+    }
+
+    static class MigrationV12 implements Migration {
+        @Override
+        public int version() { return 12; }
+
+        @Override
+        public void apply(Connection conn) throws SQLException {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE servers ADD COLUMN tls_skip_verify BOOL NOT NULL DEFAULT 0");
+            }
+        }
+    }
+
+    static class MigrationV13 implements Migration {
+        @Override
+        public int version() { return 13; }
+
+        @Override
+        public void apply(Connection conn) throws SQLException {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("ALTER TABLE servers ADD COLUMN audio_format TEXT DEFAULT NULL");
+                stmt.execute("ALTER TABLE servers ADD COLUMN audio_bitrate INTEGER DEFAULT NULL");
             }
         }
     }

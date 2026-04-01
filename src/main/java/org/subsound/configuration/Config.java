@@ -2,7 +2,6 @@ package org.subsound.configuration;
 
 import org.jspecify.annotations.Nullable;
 import org.subsound.configuration.Config.ConfigurationDTO.OnboardingState;
-import org.subsound.configuration.Config.ConfigurationDTO.ServerConfigDTO;
 import org.subsound.configuration.constants.Constants;
 import org.subsound.integration.ServerClient.ServerType;
 import org.subsound.integration.ServerClient.TranscodeBitrate;
@@ -34,8 +33,12 @@ public class Config {
     public OnboardingState onboarding;
     public int windowWidth = DEFAULT_WINDOW_WIDTH;
     public int windowHeight = DEFAULT_WINDOW_HEIGHT;
-    private boolean credentialsInKeyring = false;
 
+    // Server ID loaded from JSON — used by AppManager to look up server from DB
+    public @Nullable String serverId;
+
+    // Legacy server config data read from old JSON format, used for one-time migration to DB
+    public @Nullable LegacyServerConfig legacyServerConfig;
 
     public Config(Path configFilePath, SecretService secretService) {
         this.configFilePath = configFilePath;
@@ -59,10 +62,6 @@ public class Config {
         return Optional.ofNullable(this.serverConfig);
     }
 
-    public void setCredentialsInKeyring(boolean value) {
-        this.credentialsInKeyring = value;
-    }
-
     public SecretService getSecretService() {
         return secretService;
     }
@@ -72,54 +71,8 @@ public class Config {
         d.onboarding = this.onboarding;
         d.windowWidth = this.windowWidth;
         d.windowHeight = this.windowHeight;
-        if (this.serverConfig != null) {
-            // Only write password to config file if libsecret is not available
-            String passwordForFile = this.credentialsInKeyring ? null : this.serverConfig.password();
-            d.server = new ServerConfigDTO(
-                    this.serverConfig.id(),
-                    this.serverConfig.type(),
-                    this.serverConfig.url(),
-                    this.serverConfig.username(),
-                    passwordForFile,
-                    this.serverConfig.audioFormat() != null ? this.serverConfig.audioFormat().name() : null,
-                    switch (this.serverConfig.audioBitrate()) {
-                        case null -> null;
-                        case TranscodeBitrate.SourceQuality _ -> null;
-                        case TranscodeBitrate.MaximumBitrate(var kbps) -> kbps;
-                    }
-            );
-        }
+        d.serverId = this.serverId;
         return d;
-    }
-
-    private record ResolvedCredentials(String username, @Nullable String password, boolean inKeyring, boolean migrated) {}
-
-    private static ResolvedCredentials resolveCredentials(
-            SecretService secretService,
-            String serverId,
-            String username,
-            @Nullable String password
-    ) {
-        // Migrate legacy password from config file to keyring
-        if (secretService.isAvailable() && password != null && !password.isBlank()) {
-            boolean stored = secretService.storeCredentialsSync(serverId, username, password);
-            if (stored) {
-                log.info("Migrated credentials to keyring for server={}", serverId);
-                return new ResolvedCredentials(username, password, true, true);
-            } else {
-                log.warn("Failed to store credentials in keyring, keeping password in config file");
-                return new ResolvedCredentials(username, password, false, false);
-            }
-        }
-
-        // No password in config file — look up from keyring
-        var creds = secretService.lookupCredentialsSync(serverId);
-        if (creds != null) {
-            log.info("Loaded credentials from keyring for server={}", serverId);
-            return new ResolvedCredentials(creds.username(), creds.password(), true, false);
-        }
-
-        return new ResolvedCredentials(username, password, false, false);
     }
 
     public record ServerConfig(
@@ -131,7 +84,19 @@ public class Config {
             String username,
             String password,
             TranscodeFormat audioFormat,   // nullable means use mp3
-            @Nullable TranscodeBitrate audioBitrate   // null = SourceQuality
+            @Nullable TranscodeBitrate audioBitrate,   // null = SourceQuality
+            boolean tlsSkipVerify
+    ) {}
+
+    // Holds legacy server fields read from old JSON format for migration
+    public record LegacyServerConfig(
+            String id,
+            ServerType type,
+            String url,
+            String username,
+            @Nullable String password,
+            @Nullable String audioFormat,
+            @Nullable Integer transcodeBitrate
     ) {}
 
     public static Config createDefault(SecretService secretService) {
@@ -153,36 +118,24 @@ public class Config {
                             if (cfg.windowHeight != null && cfg.windowHeight > 0) {
                                 config.windowHeight = cfg.windowHeight;
                             }
-                            if (cfg.server != null) {
+                            // New format: serverId field
+                            if (cfg.serverId != null && !cfg.serverId.isBlank()) {
+                                config.serverId = cfg.serverId;
                                 config.onboarding = OnboardingState.DONE;
-                                TranscodeFormat audioFormat = null;
-                                try {
-                                    if (cfg.server.audioFormat != null) {
-                                        audioFormat = TranscodeFormat.valueOf(cfg.server.audioFormat);
-                                    }
-                                } catch (IllegalArgumentException ignored) {}
-                                TranscodeBitrate audioBitrate = null;
-                                if (cfg.server.transcodeBitrate != null && cfg.server.transcodeBitrate > 0) {
-                                    audioBitrate = TranscodeBitrate.MaximumBitrate.of(cfg.server.transcodeBitrate);
-                                }
-
-                                var creds = resolveCredentials(secretService, cfg.server.id, cfg.server.username, cfg.server.password);
-                                config.credentialsInKeyring = creds.inKeyring();
-
-                                config.serverConfig = new ServerConfig(
-                                        config.dataDir, cfg.server.id, cfg.server.type,
-                                        cfg.server.url, creds.username(), creds.password(),
-                                        audioFormat, audioBitrate
+                            }
+                            // Legacy format: full server object in JSON
+                            else if (cfg.server != null) {
+                                config.serverId = cfg.server.id;
+                                config.onboarding = OnboardingState.DONE;
+                                config.legacyServerConfig = new LegacyServerConfig(
+                                        cfg.server.id,
+                                        cfg.server.type,
+                                        cfg.server.url,
+                                        cfg.server.username,
+                                        cfg.server.password,
+                                        cfg.server.audioFormat,
+                                        cfg.server.transcodeBitrate
                                 );
-
-                                if (creds.migrated()) {
-                                    try {
-                                        config.saveToFile();
-                                        log.info("Removed plain-text password from config file");
-                                    } catch (IOException e) {
-                                        log.warn("Failed to re-save config after migration", e);
-                                    }
-                                }
                             }
                         },
                         () -> log.debug("no config file found at path={}", configFilePath)
@@ -192,18 +145,25 @@ public class Config {
     }
 
     public static class ConfigurationDTO {
+        // Legacy fields for reading old config format
         public record ServerConfigDTO(
                 String id,
                 ServerType type,
                 String url,
                 String username,
                 String password,
-                String audioFormat,   // String for JSON, Gson serializes enums by name
-                Integer transcodeBitrate   // null/0 = source, positive = MaximumBitrate kbps
+                String audioFormat,
+                Integer transcodeBitrate
         ) {}
 
+        // New format: only stores serverId
+        @SerializedName("serverId")
+        public String serverId;
+
+        // Legacy: full server object (read-only for migration)
         @SerializedName("server")
         public ServerConfigDTO server;
+
         @SerializedName("onboarding")
         public OnboardingState onboarding;
         @SerializedName("windowWidth")

@@ -28,7 +28,9 @@ import org.subsound.persistence.SongCache.CacheSong;
 import org.subsound.persistence.SongCache.LoadSongResult;
 import org.subsound.persistence.ThumbnailCache;
 import org.subsound.persistence.database.Database;
+import org.subsound.persistence.database.DatabaseService;
 import org.subsound.persistence.database.DatabaseServerService;
+import org.subsound.persistence.database.Server;
 import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.PlayerConfig;
 import org.subsound.persistence.database.PlayerConfigService;
@@ -46,6 +48,7 @@ import org.subsound.utils.Utils;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -93,6 +96,7 @@ public class AppManager {
     private final SearchResultStore searchResultStore;
     private final ScheduledExecutorService preferenceSaveScheduler = Executors.newSingleThreadScheduledExecutor();
     private final Database database;
+    private final DatabaseService databaseService;
     private final DatabaseServerService dbService;
     private final PlayerConfigService playerConfigService;
     private final DownloadManager downloadManager;
@@ -110,7 +114,6 @@ public class AppManager {
             Config config,
             PlaybinPlayer player,
             ThumbnailCache thumbnailCache,
-            Optional<ServerClient> client,
             Runnable onQuit
     ) {
         this.config = config;
@@ -118,6 +121,7 @@ public class AppManager {
         this.player = player;
         this.thumbnailCache = thumbnailCache;
         this.database = new Database();
+        this.databaseService = new DatabaseService(this.database);
         this.playerConfigService = new PlayerConfigService(this.database);
         // Apply saved player preferences (volume/mute) from DB
         // Must be done after currentState is initialized since setVolume/setMute trigger state changes
@@ -163,8 +167,9 @@ public class AppManager {
                 songInfo -> loadSourceAsync(new PlayerAction.PlaySong(songInfo.getSongInfo()))
         );
 
+        // Load server configuration from DB (or migrate from legacy JSON)
         this.client = new AtomicReference<>();
-        client.ifPresent(c -> this.client.set(wrapWithCaching(c)));
+        initServerConfig(config);
 
         player.onStateChanged(next -> {
             this.setState(old -> old.withPlayer(next));
@@ -193,14 +198,110 @@ public class AppManager {
         this.playlistsStore = new PlaylistsStore(this);
         this.searchResultStore = new SearchResultStore(this.client::get);
 
-        client.ifPresent(c -> {
+        if (this.client.get() != null) {
             this.starredList.refreshAsync();
             this.playlistsStore.refreshListAsync();
-        });
+        }
         this.scrobbleService = new ScrobbleService(
                 dbService,
                 () -> this.client.get(),
                 () -> this.getState().networkState()
+        );
+    }
+
+    private void initServerConfig(Config config) {
+        if (config.serverId == null) {
+            return; // No server configured — onboarding needed
+        }
+
+        var secretService = config.getSecretService();
+        var serverOpt = this.databaseService.getServerById(config.serverId);
+
+        if (serverOpt.isPresent()) {
+            // Server found in DB — build config from it
+            var server = serverOpt.get();
+            var password = resolvePassword(secretService, server.id().toString(), server.username());
+            config.serverConfig = buildServerConfig(config.dataDir, server, password);
+            var serverClient = ServerClient.create(config.serverConfig);
+            this.client.set(wrapWithCaching(serverClient));
+        } else if (config.legacyServerConfig != null) {
+            // Legacy JSON config — migrate to DB
+            log.info("Migrating legacy server config to database for serverId={}", config.serverId);
+            var legacy = config.legacyServerConfig;
+            var password = resolvePassword(secretService, legacy.id(), legacy.username());
+            // Also check legacy password from JSON (may be plain-text in old format)
+            if (password == null && legacy.password() != null && !legacy.password().isBlank()) {
+                password = legacy.password();
+                // Migrate to keyring
+                boolean stored = secretService.storeCredentialsSync(legacy.id(), legacy.username(), password);
+                if (stored) {
+                    log.info("Migrated legacy password to keyring for server={}", legacy.id());
+                }
+            }
+
+            var server = new Server(
+                    UUID.fromString(legacy.id()),
+                    true,
+                    legacy.type(),
+                    legacy.url(),
+                    legacy.username(),
+                    Instant.now(),
+                    false,
+                    legacy.audioFormat(),
+                    legacy.transcodeBitrate()
+            );
+            this.databaseService.insert(server);
+            config.legacyServerConfig = null;
+
+            // Re-save JSON in new format (strips legacy server fields)
+            try {
+                config.saveToFile();
+                log.info("Saved config in new format (server details moved to database)");
+            } catch (IOException e) {
+                log.warn("Failed to re-save config after migration", e);
+            }
+
+            config.serverConfig = buildServerConfig(config.dataDir, server, password);
+            var serverClient = ServerClient.create(config.serverConfig);
+            this.client.set(wrapWithCaching(serverClient));
+        } else {
+            log.warn("serverId={} set in config but no server found in database", config.serverId);
+        }
+    }
+
+    private static @org.jspecify.annotations.Nullable String resolvePassword(
+            org.subsound.integration.platform.secret.SecretService secretService,
+            String serverId,
+            String username
+    ) {
+        var creds = secretService.lookupCredentialsSync(serverId);
+        if (creds != null) {
+            return creds.password();
+        }
+        return null;
+    }
+
+    private static Config.ServerConfig buildServerConfig(Path dataDir, Server server, @org.jspecify.annotations.Nullable String password) {
+        TranscodeFormat audioFormat = null;
+        if (server.audioFormat() != null) {
+            try {
+                audioFormat = TranscodeFormat.valueOf(server.audioFormat());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        ServerClient.TranscodeBitrate audioBitrate = null;
+        if (server.audioBitrate() != null && server.audioBitrate() > 0) {
+            audioBitrate = ServerClient.TranscodeBitrate.MaximumBitrate.of(server.audioBitrate());
+        }
+        return new Config.ServerConfig(
+                dataDir,
+                server.id().toString(),
+                server.serverType(),
+                server.serverUrl(),
+                server.username(),
+                password != null ? password : "",
+                audioFormat,
+                audioBitrate,
+                server.tlsSkipVerify()
         );
     }
 
@@ -776,31 +877,44 @@ public class AppManager {
 
     private void saveConfig(PlayerAction.SaveConfig settings) {
         this.config.onboarding = OnboardingState.DONE;
-        TranscodeFormat existingFormat = this.config.serverConfig != null
-                ? this.config.serverConfig.audioFormat() : null;
-        ServerClient.TranscodeBitrate existingBitrate = this.config.serverConfig != null
-                ? this.config.serverConfig.audioBitrate() : null;
-        this.config.serverConfig = new Config.ServerConfig(
-                this.config.dataDir,
-                SERVER_ID,
+        this.config.serverId = SERVER_ID;
+
+        // Preserve existing audio settings
+        String existingAudioFormat = null;
+        Integer existingAudioBitrate = null;
+        var existingServer = this.databaseService.getServerById(SERVER_ID);
+        if (existingServer.isPresent()) {
+            existingAudioFormat = existingServer.get().audioFormat();
+            existingAudioBitrate = existingServer.get().audioBitrate();
+        }
+
+        // Upsert full server record to DB
+        var server = new Server(
+                UUID.fromString(SERVER_ID),
+                true,
                 settings.next().type(),
                 settings.next().serverUrl(),
                 settings.next().username(),
-                settings.next().password(),
-                existingFormat,
-                existingBitrate
+                existingServer.map(Server::createdAt).orElse(Instant.now()),
+                settings.next().tlsSkipVerify(),
+                existingAudioFormat,
+                existingAudioBitrate
         );
-        // Store credentials in libsecret if available
+        this.databaseService.upsert(server);
+
+        // Store credentials in keyring
         var secretService = this.config.getSecretService();
-        boolean stored = secretService.storeCredentialsSync(
+        secretService.storeCredentialsSync(
                 SERVER_ID,
                 settings.next().username(),
                 settings.next().password()
         );
-        this.config.setCredentialsInKeyring(stored);
-        if (secretService.isAvailable() && !stored) {
-            log.warn("Failed to store credentials in keyring, password will be saved to config file");
-        }
+
+        // Build runtime config from DB + password
+        this.config.serverConfig = buildServerConfig(
+                this.config.dataDir, server, settings.next().password()
+        );
+
         try {
             this.config.saveToFile();
             var newClient = ServerClient.create(this.config.serverConfig);
@@ -811,17 +925,37 @@ public class AppManager {
     }
 
     private void saveTranscodeFormat(PlayerAction.SaveTranscodeFormat action) {
-        if (this.config.serverConfig == null) return;
-        this.config.serverConfig = new Config.ServerConfig(
-                this.config.serverConfig.dataDir(),
-                this.config.serverConfig.id(),
-                this.config.serverConfig.type(),
-                this.config.serverConfig.url(),
-                this.config.serverConfig.username(),
-                this.config.serverConfig.password(),
-                action.audioFormat().format(),
-                action.audioFormat().bitrate()
+        if (this.config.serverConfig == null) {
+            return;
+        }
+
+        // Load current server from DB, update audio fields
+        var serverOpt = this.databaseService.getServerById(this.config.serverConfig.id());
+        if (serverOpt.isEmpty()) {
+            return;
+        }
+        var server = serverOpt.get();
+        var format = action.audioFormat().format();
+        var bitrate = action.audioFormat().bitrate();
+        String audioFormatStr = format != null ? format.name() : null;
+        Integer audioBitrateInt = switch (bitrate) {
+            case null -> null;
+            case ServerClient.TranscodeBitrate.SourceQuality _ -> null;
+            case ServerClient.TranscodeBitrate.MaximumBitrate(var kbps) -> kbps;
+        };
+
+        var updatedServer = new Server(
+                server.id(), server.isPrimary(), server.serverType(),
+                server.serverUrl(), server.username(), server.createdAt(),
+                server.tlsSkipVerify(), audioFormatStr, audioBitrateInt
         );
+        this.databaseService.upsert(updatedServer);
+
+        // Rebuild runtime config
+        this.config.serverConfig = buildServerConfig(
+                this.config.dataDir, updatedServer, this.config.serverConfig.password()
+        );
+
         try {
             this.config.saveToFile();
             var newClient = ServerClient.create(this.config.serverConfig);

@@ -61,14 +61,16 @@ public class ServerConfigForm extends Box {
             ServerType type,
             String serverUrl,
             String username,
-            String password
+            String password,
+            boolean tlsSkipVerify
     ) {
         @Override
         public @NonNull String toString() {
-            return "SettingsInfo[type=%s, serverUrl=%s, username=%s, password=[REDACTED]]".formatted(
+            return "SettingsInfo[type=%s, serverUrl=%s, username=%s, password=[REDACTED], tlsSkipVerify=%s]".formatted(
                     type,
                     serverUrl,
-                    username
+                    username,
+                    tlsSkipVerify
             );
         }
     }
@@ -86,7 +88,7 @@ public class ServerConfigForm extends Box {
 
         this.serverTypeInfoLabel = Label.builder().setLabel("New Server").setCssClasses(titleLarge.add()).build();
         this.serverUrlEntry = EntryRow.builder().setTitle("Server URL").setText("https://").build();
-        this.tlsSwitchEntry = SwitchRow.builder().setTitle("Accept unverified certificate").setSensitive(false).build();
+        this.tlsSwitchEntry = SwitchRow.builder().setTitle("Skip TLS verification").setSubtitle("Accept self-signed certificates").build();
         this.usernameEntry = EntryRow.builder().setTitle("Username").build();
         this.passwordEntry = PasswordEntryRow.builder().setTitle("Password").build();
 
@@ -101,8 +103,7 @@ public class ServerConfigForm extends Box {
         this.listBox.setSelectionMode(SelectionMode.NONE);
 
         this.listBox.append(serverUrlEntry);
-        // TODO: actually implement tls-no-verified
-        //this.listBox.append(tlsSwitchEntry);
+        this.listBox.append(tlsSwitchEntry);
         this.listBox.append(usernameEntry);
         this.listBox.append(passwordEntry);
         this.listBox.append(testButton);
@@ -128,7 +129,8 @@ public class ServerConfigForm extends Box {
                     data.username,
                     data.password,
                     TranscodeFormat.source,
-                    null
+                    null,
+                    this.tlsSwitchEntry.getActive()
             ));
             boolean success = serverClient.testConnection();
             if (success) {
@@ -159,9 +161,9 @@ public class ServerConfigForm extends Box {
         Utils.runOnMainThread(() -> {
             this.serverTypeInfoLabel.setLabel("%s server".formatted(capitalize(s.type.name())));
             this.serverUrlEntry.setText(s.serverUrl);
+            this.tlsSwitchEntry.setActive(s.tlsSkipVerify);
             this.usernameEntry.setText(s.username);
             this.passwordEntry.setText(s.password);
-            this.tlsSwitchEntry.setSensitive(false);
             this.testButton.setSensitive(true);
             this.saveButton.setSensitive(false);
         });
@@ -213,7 +215,8 @@ public class ServerConfigForm extends Box {
                     ServerType.SUBSONIC,
                     parsed.toString(),
                     this.usernameEntry.getText(),
-                    this.passwordEntry.getText()
+                    this.passwordEntry.getText(),
+                    this.tlsSwitchEntry.getActive()
             ));
         } catch (IllegalArgumentException e) {
             this.serverUrlEntry.setText(url);
