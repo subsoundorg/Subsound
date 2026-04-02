@@ -34,6 +34,7 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -973,7 +974,7 @@ public class SubsonicClientV2 implements ServerClient {
 
     @Override
     public StreamResponse openStream(TranscodeInfo transcodeInfo) {
-        var params = new java.util.LinkedHashMap<String, String>();
+        var params = new HashMap<String, String>();
         params.put("id", transcodeInfo.songId());
         if (streamBitRate > 0) {
             params.put("maxBitRate", String.valueOf(streamBitRate));
