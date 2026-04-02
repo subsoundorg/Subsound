@@ -40,6 +40,9 @@ public class Config {
     // Password loaded from config file — fallback when keyring (libsecret) is unavailable (e.g. macOS)
     public @Nullable String fallbackPassword;
 
+    // Whether credentials were successfully stored in the system keyring
+    public boolean credentialsInKeyring = false;
+
     // Legacy server config data read from old JSON format, used for one-time migration to DB
     public @Nullable LegacyServerConfig legacyServerConfig;
 
@@ -75,8 +78,8 @@ public class Config {
         d.windowWidth = this.windowWidth;
         d.windowHeight = this.windowHeight;
         d.serverId = this.serverId;
-        // When keyring is unavailable (e.g. macOS), store password in config file as fallback
-        if (!secretService.isAvailable() && this.serverConfig != null) {
+        // Store password in config file when keyring is not actually holding the credentials
+        if (!this.credentialsInKeyring && this.serverConfig != null) {
             d.password = this.serverConfig.password();
         }
         return d;

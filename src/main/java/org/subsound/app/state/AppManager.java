@@ -905,11 +905,12 @@ public class AppManager {
 
         // Store credentials in keyring
         var secretService = this.config.getSecretService();
-        secretService.storeCredentialsSync(
+        boolean stored = secretService.storeCredentialsSync(
                 SERVER_ID,
                 settings.next().username(),
                 settings.next().password()
         );
+        this.config.credentialsInKeyring = stored;
 
         // Build runtime config from DB + password
         this.config.serverConfig = buildServerConfig(

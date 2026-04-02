@@ -54,10 +54,10 @@ public class Main {
 
         var secretService = SecretService.create();
         this.config = Config.createDefault(secretService);
-        var thumbnailCache = new ThumbnailCache(config.dataDir);
         var player = new PlaybinPlayer();
         var mainAppRef = new AtomicReference<MainApplication>();
         var app = new Application(Constants.APP_ID, ApplicationFlags.DEFAULT_FLAGS);
+        var thumbnailCache = new ThumbnailCache(this.config.dataDir);
         this.appManager = new AppManager(this.config, player, thumbnailCache, app::quit);
         this.artworkServer = new ArtworkHttpServer(thumbnailCache);
         this.mprisController = new MPrisController(appManager, artworkServer);
