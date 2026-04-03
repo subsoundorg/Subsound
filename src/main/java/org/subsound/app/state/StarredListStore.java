@@ -2,6 +2,8 @@ package org.subsound.app.state;
 
 import org.subsound.integration.ServerClient;
 import org.subsound.integration.ServerClient.SongInfo;
+import org.subsound.persistence.database.DatabaseServerService;
+import org.subsound.persistence.database.Song;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GSongStore;
 import org.subsound.utils.Utils;
@@ -17,8 +19,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class StarredListStore {
     private static final Logger log = LoggerFactory.getLogger(StarredListStore.class);
@@ -27,12 +32,16 @@ public class StarredListStore {
     private final ListStore<GSongInfo> store;
     private final AppManager appManager;
     private final GSongStore songStore;
+    private final DatabaseServerService dbService;
+    private final UUID serverUUID;
     private final ArrayList<String> backingIds = new ArrayList<>();
     private final AtomicBoolean isLoading = new AtomicBoolean(false);
 
-    public StarredListStore(AppManager appManager) {
+    public StarredListStore(AppManager appManager, DatabaseServerService dbService, UUID serverUUID) {
         this.appManager = appManager;
         this.songStore = appManager.getSongStore();
+        this.dbService = dbService;
+        this.serverUUID = serverUUID;
         this.store = new ListStore<>(GSongInfo.getType());
     }
 
@@ -89,6 +98,10 @@ public class StarredListStore {
                             insertions.size(),
                             newSongs.size() - insertions.size()
                     );
+
+                    // Persist starred songs to DB only when the set changed
+                    boolean hasChanges = !removalIndices.isEmpty() || !insertions.isEmpty();
+                    persistIfChanged(hasChanges, newSongs, dbService, serverUUID);
 
                     return new Diff(newSongs.size(), removalIndices.size(), insertions.size());
                 }
@@ -206,6 +219,27 @@ public class StarredListStore {
 
     public ListStore<GSongInfo> getStore() {
         return store;
+    }
+
+    /**
+     * Persists starred songs to the database when the in-memory diff indicates changes.
+     * First upserts all songs, then clears starred_at on songs no longer in the set.
+     */
+    static void persistIfChanged(
+            boolean hasChanges,
+            List<SongInfo> newSongs,
+            DatabaseServerService dbService,
+            UUID serverUUID
+    ) {
+        if (!hasChanges) {
+            return;
+        }
+        var newIdSet = newSongs.stream().map(SongInfo::id).collect(Collectors.toSet());
+        for (var song : newSongs) {
+            dbService.insert(Song.from(song, serverUUID));
+        }
+        dbService.clearStarredExcept(newIdSet);
+        log.info("persisted {} starred songs to database", newSongs.size());
     }
 
 }

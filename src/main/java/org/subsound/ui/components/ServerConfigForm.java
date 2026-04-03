@@ -120,7 +120,10 @@ public class ServerConfigForm extends Box {
     private void testConnection() {
         this.saveButton.setSensitive(false);
         var dataOpt = getFormData();
-        dataOpt.ifPresent(data -> Utils.doAsync(() -> {
+        dataOpt.ifPresent(data -> {
+            log.info("testConnection: url={} username={} passwordLength={} tlsSkipVerify={}",
+                    data.serverUrl, data.username, data.password != null ? data.password.length() : -1, data.tlsSkipVerify);
+            Utils.doAsync(() -> {
             ServerClient serverClient = ServerClient.create(new ServerConfig(
                     this.dataDir,
                     AppManager.SERVER_ID,
@@ -130,7 +133,7 @@ public class ServerConfigForm extends Box {
                     data.password,
                     TranscodeFormat.source,
                     null,
-                    this.tlsSwitchEntry.getActive()
+                    data.tlsSkipVerify
             ));
             boolean success = serverClient.testConnection();
             if (success) {
@@ -151,7 +154,8 @@ public class ServerConfigForm extends Box {
                 Classes color = success ? colorSuccess : colorError;
                 this.testButton.addCssClass(color.className());
             });
-        }));
+        });
+        });
     }
 
     public void setSettingsInfo(@Nullable SettingsInfo s) {

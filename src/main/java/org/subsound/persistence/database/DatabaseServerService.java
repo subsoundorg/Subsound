@@ -20,7 +20,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class DatabaseServerService {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseServerService.class);
@@ -462,6 +464,35 @@ public class DatabaseServerService {
             throw new RuntimeException("Failed to list starred songs", e);
         }
         return songs;
+    }
+
+    public void clearStarredExcept(Set<String> starredSongIds) {
+        if (starredSongIds.isEmpty()) {
+            String sql = "UPDATE songs SET starred_at_ms = NULL WHERE server_id = ? AND starred_at_ms IS NOT NULL";
+            try (Connection conn = database.openConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, this.serverId.toString());
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                logger.error("Failed to clear starred songs", e);
+                throw new RuntimeException("Failed to clear starred songs", e);
+            }
+            return;
+        }
+        String placeholders = starredSongIds.stream().map(_ -> "?").collect(Collectors.joining(","));
+        String sql = "UPDATE songs SET starred_at_ms = NULL WHERE server_id = ? AND starred_at_ms IS NOT NULL AND id NOT IN (" + placeholders + ")";
+        try (Connection conn = database.openConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, this.serverId.toString());
+            int idx = 2;
+            for (String id : starredSongIds) {
+                pstmt.setString(idx++, id);
+            }
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("Failed to clear stale starred songs", e);
+            throw new RuntimeException("Failed to clear stale starred songs", e);
+        }
     }
 
     public Optional<Song> getSongById(String songId) {

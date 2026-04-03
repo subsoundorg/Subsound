@@ -193,7 +193,7 @@ public class AppManager {
             restoreLastPlayingSong(lastPlayback);
         }
 
-        this.starredList = new StarredListStore(this);
+        this.starredList = new StarredListStore(this, dbService, UUID.fromString(savedServerId));
         this.playlistsStore = new PlaylistsStore(this);
         this.searchResultStore = new SearchResultStore(this.client::get);
 
