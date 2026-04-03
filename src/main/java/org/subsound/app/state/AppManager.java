@@ -838,6 +838,14 @@ public class AppManager {
                     if (!serverId.isBlank()) {
                         this.config.getSecretService().deleteCredentials(serverId);
                     }
+                    // Reset config state before deleting files.
+                    // The onShutdown callback in Main.java may re-save the config file,
+                    // so we need the saved state to be clean (triggers onboarding on next start).
+                    this.config.onboarding = null;
+                    this.config.serverId = null;
+                    this.config.serverConfig = null;
+                    this.config.credentialsInKeyring = false;
+                    this.config.fallbackPassword = null;
                     try {
                         Files.deleteIfExists(config.getConfigFilePath());
                     } catch (Exception e) {
