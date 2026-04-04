@@ -192,6 +192,7 @@ public class ServerBadge extends Box implements AppManager.StateListener {
         logoutButton.addCssClass(Classes.flat.className());
         logoutButton.addCssClass("error");
         logoutButton.onActivated(() -> {
+            onClose.run();
             AdwDialogHelper.ofDialog(
                     parentWindow,
                     "Log out?",
