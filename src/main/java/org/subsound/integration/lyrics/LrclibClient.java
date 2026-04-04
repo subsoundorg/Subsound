@@ -1,7 +1,6 @@
 package org.subsound.integration.lyrics;
 
 import okhttp3.HttpUrl;
-import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -22,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static org.subsound.utils.LogUtils.loggingInterceptor;
+import static org.subsound.utils.LogUtils.userAgentInterceptor;
 
 /**
  * Client for lrclib.net — a free synced lyrics API.
@@ -29,7 +29,6 @@ import static org.subsound.utils.LogUtils.loggingInterceptor;
  */
 public class LrclibClient {
     private static final String DEFAULT_BASE_URL = "https://lrclib.net";
-    private static final String USER_AGENT = "%s/1.0 (https://github.com/esiqveland/subsound-gtk)".formatted(Constants.APP_ID);
     private static final int DURATION_TOLERANCE_SECONDS = 5;
     private static final Pattern LRC_TIMESTAMP = Pattern.compile("\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})]");
 
@@ -55,7 +54,7 @@ public class LrclibClient {
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .callTimeout(10, TimeUnit.SECONDS)
-                .addInterceptor(userAgentInterceptor())
+                .addInterceptor(userAgentInterceptor(Constants.USER_AGENT))
                 .addInterceptor(loggingInterceptor(log))
                 .build();
     }
@@ -214,15 +213,6 @@ public class LrclibClient {
             log.warn("Failed to fetch {}: {}", url, e.getMessage());
             return null;
         }
-    }
-
-    private static Interceptor userAgentInterceptor() {
-        return chain -> {
-            var request = chain.request().newBuilder()
-                    .header("User-Agent", USER_AGENT)
-                    .build();
-            return chain.proceed(request);
-        };
     }
 
 }

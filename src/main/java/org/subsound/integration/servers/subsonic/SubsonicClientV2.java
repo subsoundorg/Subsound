@@ -47,6 +47,7 @@ import static java.util.Optional.ofNullable;
 import static org.subsound.app.state.AppManager.SERVER_ID;
 import static org.subsound.persistence.ThumbnailCache.toCachePath;
 import static org.subsound.utils.LogUtils.loggingInterceptor;
+import static org.subsound.utils.LogUtils.userAgentInterceptor;
 
 /**
  * JSON-based Subsonic API client using OkHttpClient.
@@ -80,6 +81,7 @@ public class SubsonicClientV2 implements ServerClient {
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .callTimeout(10, TimeUnit.SECONDS)
+                .addInterceptor(userAgentInterceptor(Constants.USER_AGENT))
                 .addInterceptor(loggingInterceptor(log));
 
         if (cfg.tlsSkipVerify()) {

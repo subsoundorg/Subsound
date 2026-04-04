@@ -31,4 +31,13 @@ public class LogUtils {
         };
     }
 
+    public static Interceptor userAgentInterceptor(String agentString) {
+        return chain -> {
+            var request = chain.request().newBuilder()
+                    .header("User-Agent", agentString)
+                    .build();
+            return chain.proceed(request);
+        };
+    }
+
 }
