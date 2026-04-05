@@ -67,9 +67,11 @@ public final class LibsecretService implements SecretService {
             var service = Service.getSync(ServiceFlags.OPEN_SESSION, null);
             var items = service.searchSync(
                     SCHEMA, attributes,
-                    EnumSet.of(SearchFlags.LOAD_SECRETS),
+                    EnumSet.of(SearchFlags.ALL, SearchFlags.LOAD_SECRETS),
                     null
             );
+            int size = items != null ? items.size() : 0;
+            log.info("lookupCredentialsSyncInner serverId={}, username={}, items.size={}", serverId, username, size);
             if (items == null || items.isEmpty()) {
                 return null;
             }
