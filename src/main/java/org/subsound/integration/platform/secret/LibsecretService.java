@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.EnumSet;
 
+import static java.util.Optional.ofNullable;
+
 public final class LibsecretService implements SecretService {
     private static final Logger log = LoggerFactory.getLogger(LibsecretService.class);
     private final Schema SCHEMA;
@@ -53,6 +55,13 @@ public final class LibsecretService implements SecretService {
 
     @Override
     public @Nullable Credentials lookupCredentialsSync(String serverId, String username) {
+        var c = lookupCredentialsSyncInner(serverId, username);
+        int ss = ofNullable(c).map(Credentials::password).map(String::length).orElse(0);
+        log.info("lookupCredentialsSync serverId={}, username={}, credentials.size={}", serverId, username, ss);
+        return c;
+    }
+
+    public @Nullable Credentials lookupCredentialsSyncInner(String serverId, String username) {
         try {
             var attributes = Secret.attributesBuild(SCHEMA, "server-id", serverId, "username", username, null);
             var service = Service.getSync(ServiceFlags.OPEN_SESSION, null);
