@@ -274,7 +274,7 @@ public class AppManager {
             String username,
             Config config
     ) {
-        var creds = secretService.lookupCredentialsSync(serverId);
+        var creds = secretService.lookupCredentialsSync(serverId, username);
         if (creds != null) {
             return creds.password();
         }
@@ -911,8 +911,11 @@ public class AppManager {
         );
         this.databaseService.upsert(server);
 
-        // Store credentials in keyring
+        // Clear any stale credentials for this server before storing new ones.
+        // On Flatpak, the secret portal may accumulate entries if passwordStoreSync
+        // does not overwrite when attributes differ (e.g. different username).
         var secretService = this.config.getSecretService();
+        secretService.deleteCredentials(SERVER_ID);
         boolean stored = secretService.storeCredentialsSync(
                 SERVER_ID,
                 settings.next().username(),

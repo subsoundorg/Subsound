@@ -10,7 +10,7 @@ public final class NoopSecretService implements SecretService {
     }
 
     @Override
-    public @Nullable Credentials lookupCredentialsSync(String serverId) {
+    public @Nullable Credentials lookupCredentialsSync(String serverId, String username) {
         return null;
     }
 

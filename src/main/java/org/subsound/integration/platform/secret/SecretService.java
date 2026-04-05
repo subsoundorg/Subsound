@@ -9,7 +9,7 @@ public sealed interface SecretService permits LibsecretService, NoopSecretServic
 
     boolean storeCredentialsSync(String serverId, String username, String password);
 
-    @Nullable Credentials lookupCredentialsSync(String serverId);
+    @Nullable Credentials lookupCredentialsSync(String serverId, String username);
 
     boolean deleteCredentials(String serverId);
 

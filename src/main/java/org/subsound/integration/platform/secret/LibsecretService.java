@@ -52,9 +52,9 @@ public final class LibsecretService implements SecretService {
     }
 
     @Override
-    public @Nullable Credentials lookupCredentialsSync(String serverId) {
+    public @Nullable Credentials lookupCredentialsSync(String serverId, String username) {
         try {
-            var attributes = Secret.attributesBuild(SCHEMA, "server-id", serverId, null);
+            var attributes = Secret.attributesBuild(SCHEMA, "server-id", serverId, "username", username, null);
             var service = Service.getSync(ServiceFlags.OPEN_SESSION, null);
             var items = service.searchSync(
                     SCHEMA, attributes,
@@ -66,16 +66,16 @@ public final class LibsecretService implements SecretService {
             }
             var item = items.getFirst();
             var itemAttrs = item.getAttributes();
-            var username = itemAttrs.lookup("username");
+            var itemUsername = itemAttrs.lookup("username");
             var secret = item.getSecret();
-            if (username == null || secret == null) {
+            if (itemUsername == null || secret == null) {
                 return null;
             }
             var password = secret.getText();
             if (password == null) {
                 return null;
             }
-            return new Credentials(username, password);
+            return new Credentials(itemUsername, password);
         } catch (Exception e) {
             log.warn("Failed to lookup credentials in libsecret for server={}: {}", serverId, e.getMessage());
             return null;
