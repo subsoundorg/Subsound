@@ -13,6 +13,25 @@ import org.slf4j.LoggerFactory;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Credential storage using libsecret.
+ *
+ * <p>Inside Flatpak, libsecret (>= 0.20) has two distinct backends depending on which API is used:
+ *
+ * <ul>
+ *   <li><b>Simple API</b> ({@code secret_password_store_sync}, {@code secret_password_lookup_sync},
+ *       {@code secret_password_clear_sync}): uses a local encrypted file backend via the
+ *       {@code org.freedesktop.portal.Secret} portal. Secrets are stored in
+ *       {@code ~/.var/app/$APPID/data/keyrings/}.</li>
+ *   <li><b>Complete API</b> ({@code SecretService}, {@code secret_service_search_sync}): bypasses
+ *       the portal and talks directly to the host keyring over D-Bus
+ *       ({@code org.freedesktop.secrets}). This is a completely different storage location.</li>
+ * </ul>
+ *
+ * <p>All methods in this class use the Simple API to ensure they read from and write to the same
+ * backend. Mixing Simple and Complete API calls will silently read/write different stores, causing
+ * credentials to appear missing on Flatpak.
+ */
 public final class LibsecretService implements SecretService {
     private static final Logger log = LoggerFactory.getLogger(LibsecretService.class);
     private final Schema SCHEMA;
