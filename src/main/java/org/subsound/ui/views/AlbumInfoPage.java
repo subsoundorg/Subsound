@@ -13,6 +13,7 @@ import org.subsound.app.state.PlayerAction.PlayAndReplaceQueue;
 import org.subsound.integration.ServerClient.SongInfo;
 import org.subsound.persistence.ThumbnailCache;
 import org.subsound.ui.components.AppNavigation;
+import org.subsound.ui.components.BackgroundPaintable;
 import org.subsound.ui.components.Classes;
 import org.subsound.ui.components.ClickLabel;
 import org.subsound.ui.components.Icons;
@@ -26,7 +27,7 @@ import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GDownloadState;
 import org.subsound.ui.models.GSongInfo.Signal;
 import org.subsound.ui.views.PlaylistListViewV2.GPlaylistEntry;
-import org.subsound.utils.ImageUtils;
+
 import org.subsound.utils.Utils;
 import org.gnome.adw.Clamp;
 import org.gnome.gdk.Display;
@@ -83,6 +84,7 @@ public class AlbumInfoPage extends Box implements StateListener {
     private final AlbumInfo info;
 
     private final Box headerBox;
+    private final BackgroundPaintable backgroundPaintable;
     private final Picture backdropPicture;
     private final Overlay headerOverlay;
     private final ScrolledWindow scroll;
@@ -669,7 +671,9 @@ public class AlbumInfoPage extends Box implements StateListener {
         this.headerBox.append(this.artistImage);
         this.headerBox.append(this.albumInfoBox);
 
+        this.backgroundPaintable = new BackgroundPaintable();
         this.backdropPicture = new Picture();
+        this.backdropPicture.setPaintable(this.backgroundPaintable);
         this.backdropPicture.setContentFit(ContentFit.COVER);
         this.backdropPicture.setCanShrink(true);
 
@@ -739,19 +743,8 @@ public class AlbumInfoPage extends Box implements StateListener {
     }
 
     private void switchBackdrop(ThumbnailCache.CachedTexture cachedTexture) {
-        var backdrop = cachedTexture.backdropTexture();
-        if (backdrop == null) {
-            // Fallback: use palette-based CSS gradient
-            StringBuilder colors = new StringBuilder();
-            List<ImageUtils.ColorValue> palette = cachedTexture.palette();
-            for (int i = 0; i < palette.size(); i++) {
-                ImageUtils.ColorValue colorValue = palette.get(i);
-                colors.append("@define-color background_color_%d %s;\n".formatted(i, colorValue.rgba().toString()));
-            }
-            COLOR_PROVIDER.loadFromString(colors.toString());
-            return;
-        }
-        Utils.runOnMainThread(() -> this.backdropPicture.setPaintable(backdrop));
+        var texture = cachedTexture.texture();
+        Utils.runOnMainThread(() -> this.backgroundPaintable.setTexture(texture));
     }
 
     public static Label infoLabel(String label, String[] cssClazz) {
