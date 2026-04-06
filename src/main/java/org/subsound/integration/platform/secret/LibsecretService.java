@@ -5,16 +5,11 @@ import org.gnome.glib.HashTable;
 import org.gnome.secret.Schema;
 import org.gnome.secret.SchemaAttributeType;
 import org.gnome.secret.SchemaFlags;
-import org.gnome.secret.SearchFlags;
 import org.gnome.secret.Secret;
-import org.gnome.secret.Service;
-import org.gnome.secret.ServiceFlags;
 import org.javagi.interop.Interop;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.EnumSet;
 
 import static java.util.Optional.ofNullable;
 
@@ -61,32 +56,14 @@ public final class LibsecretService implements SecretService {
         return c;
     }
 
-    public @Nullable Credentials lookupCredentialsSyncInner(String serverId, String username) {
+    private @Nullable Credentials lookupCredentialsSyncInner(String serverId, String username) {
         try {
             var attributes = Secret.attributesBuild(SCHEMA, "server-id", serverId, "username", username, null);
-            var service = Service.getSync(ServiceFlags.OPEN_SESSION, null);
-            var items = service.searchSync(
-                    SCHEMA, attributes,
-                    EnumSet.of(SearchFlags.ALL, SearchFlags.LOAD_SECRETS),
-                    null
-            );
-            int size = items != null ? items.size() : 0;
-            log.info("lookupCredentialsSyncInner serverId={}, username={}, items.size={}", serverId, username, size);
-            if (items == null || items.isEmpty()) {
+            var password = Secret.passwordLookupSync(SCHEMA, attributes, null);
+            if (password == null || password.isEmpty()) {
                 return null;
             }
-            var item = items.getFirst();
-            var itemAttrs = item.getAttributes();
-            var itemUsername = itemAttrs.lookup("username");
-            var secret = item.getSecret();
-            if (itemUsername == null || secret == null) {
-                return null;
-            }
-            var password = secret.getText();
-            if (password == null) {
-                return null;
-            }
-            return new Credentials(itemUsername, password);
+            return new Credentials(username, password);
         } catch (Exception e) {
             log.warn("Failed to lookup credentials in libsecret for server={}: {}", serverId, e.getMessage());
             return null;
