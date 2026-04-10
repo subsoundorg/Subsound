@@ -37,7 +37,8 @@ GSongInfo:
 - [ ] mobile adaptive UI
 
 playqueue:
-- database as a backing store for the PlayQueue, so we can persist the queue across restarts.
+- [ ] database as a backing store for the PlayQueue, so we can persist the queue across restarts.
+- [ ] when a song fails to download or otherwise start playing, skip to the next song in the playqueue
 
 worklog:
 
