@@ -122,6 +122,16 @@ public class PlayQueue implements AutoCloseable, PlaybinPlayer.OnStateChanged {
         }
     }
 
+    public Optional<GSongInfo> peekNext() {
+        synchronized (lock) {
+            int nextIdx = position.orElse(-1) + 1;
+            if (nextIdx >= listStore.getNItems()) {
+                return Optional.empty();
+            }
+            return Optional.of(listStore.get(nextIdx).getSongInfo());
+        }
+    }
+
     public void attemptPlayNext() {
         synchronized (lock) {
             if (listStore.isEmpty()) {

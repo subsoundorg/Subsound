@@ -524,13 +524,20 @@ public class AppManager {
 
 
     public CompletableFuture<LoadSongResult> loadSourceAsync(PlayerAction.PlaySong songInfo) {
-
         return CompletableFuture.supplyAsync(
                 () -> this.loadSourceSync(songInfo),
                 ASYNC_EXECUTOR
-        ).exceptionally(throwable -> {
-            log.error("loadSourceAsync: failed to load: {} {}", songInfo.song().id(), songInfo.song().title(), throwable);
-            throw new RuntimeException(throwable);
+        ).handle((result, throwable) -> {
+            if (throwable != null) {
+                log.error("loadSourceAsync: failed to load: {} {}", songInfo.song().id(), songInfo.song().title(), throwable);
+                this.playQueue.attemptPlayNext();
+                return null;
+            }
+            if (result == null) {
+                // loadSourceSync returned null (song not available); toast already shown
+                this.playQueue.attemptPlayNext();
+            }
+            return result;
         });
     }
 
@@ -652,6 +659,7 @@ public class AppManager {
                 new AudioSource(cachedSong.uri(), songInfo.duration()),
                 startPlaying
         );
+        Utils.doAsync(this::prefetchNextSong);
 
         this.setState(old -> old.withNowPlaying(Optional.of(new NowPlaying(
                 songInfo,
@@ -667,6 +675,29 @@ public class AppManager {
             this.player.waitUntilReady();
         }
         return cachedSong;
+    }
+
+    private void prefetchNextSong() {
+        var next = this.playQueue.peekNext();
+        if (next.isEmpty()) {
+            return;
+        }
+        var songInfo = next.get().getSongInfo();
+        var cacheSong = new CacheSong(
+                SERVER_ID,
+                songInfo.id(),
+                songInfo.transcodeInfo(),
+                songInfo.suffix(),
+                songInfo.size(),
+                (total, count) -> {}
+        );
+        Utils.doAsync(() -> {
+            var result = songCache.getSong(cacheSong);
+            if (result.result() != SongCache.CacheResult.CANCELLED) {
+                log.debug("prefetchNextSong: cached song={}", songInfo.id());
+            }
+            return null;
+        });
     }
 
     private Optional<URI> resolveStreamUri(SongInfo songInfo) {

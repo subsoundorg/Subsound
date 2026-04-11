@@ -128,7 +128,6 @@ public class PlaybinPlayer implements Player {
     State pipelineState = State.NULL;
 
     private final AtomicBoolean quitState = new AtomicBoolean(false);
-
     public void setMute(boolean muted) {
         boolean isMuted = muteState.get();
         log.debug("Playbin: set muted={} isMuted={}", muted, isMuted);
@@ -194,13 +193,12 @@ public class PlaybinPlayer implements Player {
             this.setPlayerState(END_OF_STREAM);
             this.notifyState();
         } else if (msgTypes.contains(MessageType.ERROR)) {
-            log.debug("Player: Got Event Type: {}", msgType.name());
             Out<GError> error = new Out<>();
             Out<String> debug = new Out<>();
             msg.parseError(error, debug);
-
-            GLib.printerr("Error: %s\n", error.get().readMessage());
-
+            log.error("Player: GStreamer error: {}", error.get().readMessage());
+            setPlayerState(END_OF_STREAM);
+            notifyState();
             loop.quit();
         } else if (msgTypes.contains(MessageType.ASYNC_DONE)) {
             // if the seek operation succeeded.
