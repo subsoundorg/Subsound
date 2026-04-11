@@ -20,7 +20,7 @@ Pending a Flatpak release, you can run from source or use the Flatpak beta relea
 
 ```bash
 # Add remote (one-time)
-flatpak remote-add --user --no-gpg-verify subsound-beta https://esiqveland.github.io/subsound-gtk-repo/
+flatpak remote-add --user --no-gpg-verify subsound-beta https://subsoundorg.github.io/subsound-gtk-repo/
 
 # Install
 flatpak install --user subsound-beta io.github.Subsound
