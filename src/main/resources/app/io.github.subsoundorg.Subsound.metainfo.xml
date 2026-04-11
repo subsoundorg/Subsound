@@ -26,7 +26,7 @@
     </ul>
   </description>
 
-  <developer id="no.esiqveland">
+  <developer id="io.github.subsoundorg">
     <name>Eivind Larsen</name>
   </developer>
 
@@ -34,6 +34,7 @@
 
   <url type="homepage">https://github.com/subsoundorg/subsound-gtk</url>
   <url type="bugtracker">https://github.com/subsoundorg/subsound-gtk/issues</url>
+  <url type="vcs-browser">https://github.com/subsoundorg/subsound-gtk</url>
 
   <screenshots>
     <screenshot type="default">
@@ -56,18 +57,4 @@
   </releases>
 
   <content_rating type="oars-1.1"/>
-
-  <categories>
-    <category>Audio</category>
-    <category>Music</category>
-  </categories>
-
-  <keywords>
-    <keyword>music</keyword>
-    <keyword>audio</keyword>
-    <keyword>navidrome</keyword>
-    <keyword>subsonic</keyword>
-    <keyword>streaming</keyword>
-    <keyword>player</keyword>
-  </keywords>
 </component>
