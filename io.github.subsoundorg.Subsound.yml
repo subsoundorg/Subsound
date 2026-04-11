@@ -16,7 +16,6 @@ finish-args:
   - "--share=ipc"
   - "--share=network"
   - "--own-name=org.mpris.MediaPlayer2.Subsound"
-  - "--talk-name=org.freedesktop.secrets"
   # Direct Rendering Interface. Necessary for GL. # TODO: Is this needed for accelerated GTK rendering?
   - "--device=dri"
   - "--filesystem=xdg-config:create"
