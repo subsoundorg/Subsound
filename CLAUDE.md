@@ -122,3 +122,15 @@ https://www.subsonic.org/pages/inc/api/schema/subsonic-rest-api-1.16.1.xsd
 
 #### Lyrics API
 Uses LRCLIB: https://lrclib.net/docs
+
+# GTK4 Widgets
+https://docs.gtk.org/gtk4/
+
+## GTK Constraint Guide
+https://docs.gtk.org/gtk4/class.ConstraintGuide.html
+
+## GTK4 Widget Gallery
+https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/widget-gallery.html
+
+## Adwaita Styles
+https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/style-classes.html
