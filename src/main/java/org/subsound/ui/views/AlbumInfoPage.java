@@ -559,8 +559,6 @@ public class AlbumInfoPage extends Box implements StateListener {
                 .build();
 
         this.listView.onRowActivated(row -> {
-            var songInfo = this.info.songs().get(row.getIndex());
-            System.out.println("AlbumInfoBox: play " + songInfo.getTitle() + " (%s)".formatted(songInfo.getId()));
             var playContext = new AlbumIdentifier(this.info.album().id());
             int count = 0;
             var queue = new ArrayList<PlayerAction.QueueSlot>(this.info.songs().size());
