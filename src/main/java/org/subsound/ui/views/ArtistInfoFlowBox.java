@@ -71,7 +71,6 @@ public class ArtistInfoFlowBox extends Box {
         ));
 
         listView = new AlbumsFlowBox(this.appManager, this.artist.albums(), (albumInfo) -> {
-            System.out.println("ArtistAlbum: goto " + albumInfo.name() + " (%s)".formatted(albumInfo.id()));
             var handler = this.onAlbumSelected;
             if (handler == null) {
                 return;
