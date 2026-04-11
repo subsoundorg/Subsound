@@ -13,16 +13,10 @@ finish-args:
   - "--socket=pulseaudio"
   - "--socket=wayland"
   - "--socket=fallback-x11"
+  - "--device=dri"
   - "--share=ipc"
   - "--share=network"
   - "--own-name=org.mpris.MediaPlayer2.Subsound"
-  # Direct Rendering Interface. Necessary for GL. # TODO: Is this needed for accelerated GTK rendering?
-  - "--device=dri"
-  - "--filesystem=xdg-config:create"
-  - "--filesystem=xdg-cache:create"
-  - "--filesystem=xdg-data:create"
-  # Pipewire like this might trigger a "Potentially unsafe" warning in tools like Flatseal because it can potentially allow broader system access
-  #- "--filesystem=xdg-run/pipewire-0:ro"
 modules:
   - name: openjdk
     buildsystem: 'simple'
@@ -54,11 +48,6 @@ modules:
     only-arches:
       - x86_64
     sources:
-      # We use the Subsound.sh script to rename the process we start, so its not just named 'java':
-      - type: file
-        path: src/main/resources/app/Subsound.sh
-      - type: file
-        path: src/main/resources/app/io.github.subsoundorg.Subsound.desktop
       - type: file
         url: https://services.gradle.org/distributions/gradle-9.3.0-all.zip
         sha256: 046f36af261f2c6ed09eef06bf25b93d1f20d5220991bb8a3f08fd5fb6f6629a
