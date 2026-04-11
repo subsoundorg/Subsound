@@ -62,6 +62,7 @@ public class PlaylistsListView extends Box {
     private final SingleSelection<GPlaylist> selectionModel;
     private final GSongStore songStore;
     private int currentIndex = 0;
+    private String currentPlaylistId = null;
 
     public PlaylistsListView(AppManager appManager) {
         super(Orientation.VERTICAL, 0);
@@ -158,6 +159,7 @@ public class PlaylistsListView extends Box {
                 return;
             }
             this.currentIndex = index;
+            this.currentPlaylistId = gPlaylist.getId();
             this.selectionModel.setSelected(index);
             var playlist = gPlaylist.getPlaylist();
             log.info("listView.onActivate: {} {}", index, playlist.name());
@@ -171,29 +173,35 @@ public class PlaylistsListView extends Box {
         this.listView.addController(motionController);
 
         this.listModel.onItemsChanged((position, nRemoved, nAdded) -> {
-            if (nRemoved == 0) {
+            // Only act when the net item count decreases (real deletion).
+            // nRemoved == nAdded is an in-place update (e.g. song-count refresh) — ignore it.
+            if (nRemoved <= nAdded) {
                 return;
             }
-            int pos = position;
-            int removed = nRemoved;
             int total = this.listModel.getNItems();
-
-            boolean currentWasRemoved = pos <= this.currentIndex && this.currentIndex < pos + removed;
-            boolean removedBeforeCurrent = pos + removed <= this.currentIndex;
-
-            if (removedBeforeCurrent) {
-                this.currentIndex = Math.max(0, this.currentIndex - removed);
-            } else if (currentWasRemoved) {
-                if (total == 0) {
-                    return;
+            if (total == 0) {
+                return;
+            }
+            // Find where the currently displayed playlist is now (by ID, not index).
+            var id = this.currentPlaylistId;
+            if (id != null) {
+                for (int i = 0; i < total; i++) {
+                    var item = this.listModel.getItem(i);
+                    if (item != null && id.equals(item.getId())) {
+                        // Still present — just keep currentIndex in sync.
+                        this.currentIndex = i;
+                        return;
+                    }
                 }
-                int newIndex = Math.min(pos, total - 1);
-                this.currentIndex = newIndex;
-                this.selectionModel.setSelected(newIndex);
-                var gPlaylist = this.listModel.getItem(newIndex);
-                if (gPlaylist != null) {
-                    this.setSelectedPlaylist(gPlaylist.getPlaylist());
-                }
+            }
+            // Current playlist was removed: select next, or last if at end.
+            int newIndex = Math.min((int) position, total - 1);
+            this.currentIndex = newIndex;
+            this.selectionModel.setSelected(newIndex);
+            var gPlaylist = this.listModel.getItem(newIndex);
+            if (gPlaylist != null) {
+                this.currentPlaylistId = gPlaylist.getId();
+                this.setSelectedPlaylist(gPlaylist.getPlaylist());
             }
         });
 
@@ -260,6 +268,7 @@ public class PlaylistsListView extends Box {
             var gPlaylist = this.listModel.getItem(i);
             if (gPlaylist != null && playlistId.equals(gPlaylist.getId())) {
                 this.currentIndex = i;
+                this.currentPlaylistId = gPlaylist.getId();
                 this.selectionModel.setSelected(i);
                 this.setSelectedPlaylist(gPlaylist.getPlaylist());
                 return;
