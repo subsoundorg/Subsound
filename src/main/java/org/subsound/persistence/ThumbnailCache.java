@@ -26,6 +26,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
@@ -139,7 +140,10 @@ public class ThumbnailCache {
                     byte[] body = response.data();
                     Files.createDirectories(cacheAbsPath.getParent());
 
-                    var tmpFilePath = cachePath.tmpFilePath().toAbsolutePath();
+                    var requestId = UUID.randomUUID().toString();
+                    var tmpFilePath = cacheAbsPath.resolveSibling(
+                            cacheAbsPath.getFileName() + "." + requestId + ".tmp"
+                    );
                     tmpFilePath.toFile().deleteOnExit();
                     try {
                         try (var out = Files.newOutputStream(tmpFilePath)) {
@@ -235,8 +239,7 @@ public class ThumbnailCache {
     }
 
     public record CachePath(
-            Path cachePath,
-            Path tmpFilePath
+            Path cachePath
     ) {
     }
 
@@ -249,8 +252,7 @@ public class ThumbnailCache {
         var key = toCacheKey(coverArtId);
         var fileName = "%s".formatted(coverArtId);
         var cachePath = joinPath(root, serverId, "thumbs", key.part1, key.part2, key.part3, fileName);
-        var cachePathTmp = joinPath(cachePath.getParent(), fileName + ".tmp");
-        return new CachePath(cachePath, cachePathTmp);
+        return new CachePath(cachePath);
     }
 
     // Vp9/webp is not supported by gdk Pixbuf. We must convert it to png/jpg first:
