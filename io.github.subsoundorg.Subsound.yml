@@ -35,8 +35,7 @@ modules:
         's,https\\://services.gradle.org/distributions/,file:\/run/build/Subsound/,'
         gradle/wrapper/gradle-wrapper.properties
       - gradle --offline -Pversion=0.0.0 build
-      # Extract libs and bin from gradle build *.tar file to /app
-      - tar vx --directory=/app --strip-components=1 --file build/distributions/*shadow*.tar
+      - install -Dm644 build/libs/Subsound-0.0.0-final.jar /app/lib/Subsound.jar
       - install -Dm755 src/main/resources/app/Subsound.sh /app/bin/Subsound
       # install icons and desktop files:
       - install --mode=0644 -D src/main/resources/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.subsoundorg.Subsound.svg
