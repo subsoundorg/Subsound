@@ -28,8 +28,9 @@ modules:
         JAVA_HOME: /usr/lib/sdk/openjdk25/jvm/openjdk-25
     build-commands:
       - gradle -v
-      - gradle --offline -Pversion=0.0.0 build
-      - install -Dm644 build/libs/Subsound-0.0.0-final.jar /app/lib/Subsound.jar
+      - gradle --offline -Pversion=0.0.0 test shadowJar
+      - ls -la build && ls -la build/libs
+      - sh -c 'install -Dm644 build/libs/*-final.jar /app/lib/Subsound.jar'
       - install -Dm755 src/main/resources/app/Subsound.sh /app/bin/Subsound
       # install icons and desktop files:
       - install --mode=0644 -D src/main/resources/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.subsoundorg.Subsound.svg
