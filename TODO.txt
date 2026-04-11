@@ -12,8 +12,6 @@
 
 ## release eventually
 - [ ] clicking album art should take you to the current playContext and select the correct song in the listview.
-if the playContext has been changed, select any song with same songId
-
 ## General
 
 Playlist:
