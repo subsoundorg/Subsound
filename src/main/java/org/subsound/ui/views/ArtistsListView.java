@@ -125,7 +125,6 @@ public class ArtistsListView extends Box {
             }
             this.currentIndex = index;
             var artist = item.getArtist();
-            System.out.println("Artists: goto " + artist.name());
             this.contentPage.setTitle(artist.name());
             this.setSelectedArtist(artist.id());
         });
