@@ -784,6 +784,7 @@ public class AppManager {
                 }
                 case PlayerAction.DeletePlaylist d -> {
                     this.useClient1(client -> client.playlistDelete(new PlaylistDeleteRequest(d.playlistId())));
+                    this.playlistsStore.removePlaylist(d.playlistId());
                 }
                 case PlayerAction.RenamePlaylist r -> {
                     // unconditionally rename the playlist in the UI first, we dont really care if we fail to rename at server

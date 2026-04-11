@@ -170,6 +170,33 @@ public class PlaylistsListView extends Box {
         });
         this.listView.addController(motionController);
 
+        this.listModel.onItemsChanged((position, nRemoved, nAdded) -> {
+            if (nRemoved == 0) {
+                return;
+            }
+            int pos = position;
+            int removed = nRemoved;
+            int total = this.listModel.getNItems();
+
+            boolean currentWasRemoved = pos <= this.currentIndex && this.currentIndex < pos + removed;
+            boolean removedBeforeCurrent = pos + removed <= this.currentIndex;
+
+            if (removedBeforeCurrent) {
+                this.currentIndex = Math.max(0, this.currentIndex - removed);
+            } else if (currentWasRemoved) {
+                if (total == 0) {
+                    return;
+                }
+                int newIndex = Math.min(pos, total - 1);
+                this.currentIndex = newIndex;
+                this.selectionModel.setSelected(newIndex);
+                var gPlaylist = this.listModel.getItem(newIndex);
+                if (gPlaylist != null) {
+                    this.setSelectedPlaylist(gPlaylist.getPlaylist());
+                }
+            }
+        });
+
         this.onDestroy(() -> {
             activateSignal.disconnect();
         });

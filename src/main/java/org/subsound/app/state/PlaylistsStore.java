@@ -160,6 +160,21 @@ public class PlaylistsStore {
         }
     }
 
+    public void removePlaylist(String playlistId) {
+        synchronized (lock) {
+            Utils.runOnMainThread(() -> {
+                for (int i = 0; i < metaStore.getNItems(); i++) {
+                    if (playlistId.equals(metaStore.getItem(i).getId())) {
+                        metaStore.remove(i);
+                        backingIds.remove(i);
+                        break;
+                    }
+                }
+                GPlaylist.instances.remove(playlistId);
+            });
+        }
+    }
+
     public void refreshPlaylistAsync(String playlistId) {
         Utils.doAsync(() -> this.appManager.useClient(cl -> cl.getPlaylist(playlistId)))
                 .thenAccept(playlist -> {
