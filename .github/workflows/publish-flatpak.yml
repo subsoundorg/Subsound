@@ -56,7 +56,7 @@ jobs:
       # breaks existing installations mid-update.
       - uses: JamesIves/github-pages-deploy-action@v4
         with:
-          repository-name: esiqveland/subsound-gtk-repo
+          repository-name: subsoundorg/subsound-gtk-repo
           ssh-key: ${{ secrets.FLATPAK_REPO_DEPLOY_KEY }}
           branch: main
           folder: repo
