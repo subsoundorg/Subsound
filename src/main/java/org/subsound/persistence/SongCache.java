@@ -14,6 +14,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.UUID;
 import java.util.Comparator;
 import java.util.function.Function;
 
@@ -58,7 +59,7 @@ public class SongCache implements SongCacheChecker {
     }
 
     public enum CacheResult {
-        HIT, MISS,
+        HIT, MISS, CANCELLED,
     }
 
     public record LoadSongResult(
@@ -83,8 +84,12 @@ public class SongCache implements SongCacheChecker {
             return new LoadSongResult(CacheResult.HIT, cacheFile.toURI());
         }
 
-        cachePath.tmpFilePath.getParent().toFile().mkdirs();
-        var cacheTmpFile = cachePath.tmpFilePath.toAbsolutePath().toFile();
+        cachePath.cachePath.getParent().toFile().mkdirs();
+        var requestId = UUID.randomUUID().toString();
+        var cacheTmpFile = joinPath(
+                cachePath.cachePath.getParent(),
+                cachePath.cachePath.getFileName() + "." + requestId + ".tmp"
+        ).toAbsolutePath().toFile();
         if (cacheTmpFile.exists()) {
             cacheTmpFile.delete();
         }
@@ -94,11 +99,12 @@ public class SongCache implements SongCacheChecker {
             throw new RuntimeException(e);
         }
 
-        try (var streamResponse = streamOpener.apply(songData.transcodeInfo)) {
+        try (var streamResponse = streamOpener.apply(songData.transcodeInfo);
+             var fileOutput = new FileOutputStream(cacheTmpFile)) {
             long estimatedContentSize = songData.transcodeInfo.estimateContentSize();
             long downloadSize = downloadTo(
                     streamResponse,
-                    new FileOutputStream(cacheTmpFile),
+                    fileOutput,
                     songData.originalSize,
                     estimatedContentSize,
                     songData.progressHandler
@@ -106,10 +112,22 @@ public class SongCache implements SongCacheChecker {
             // rename tmp file to target file.
             cacheTmpFile.renameTo(cacheFile);
             return new LoadSongResult(CacheResult.MISS, cacheFile.toURI());
+        } catch (CancelledDownloadException e) {
+            cacheTmpFile.delete();
+            log.info("Download cancelled: songId={}", songData.songId());
+            return new LoadSongResult(CacheResult.CANCELLED, null);
         } catch (FileNotFoundException e) {
+            cacheTmpFile.delete();
             throw new RuntimeException(e);
         } catch (Exception e) {
+            cacheTmpFile.delete();
             throw new RuntimeException(e);
+        }
+    }
+
+    public static class CancelledDownloadException extends RuntimeException {
+        public CancelledDownloadException() {
+            super("Download cancelled");
         }
     }
 
@@ -170,8 +188,7 @@ public class SongCache implements SongCacheChecker {
     }
 
     record CachehPath(
-            Path cachePath,
-            Path tmpFilePath
+            Path cachePath
     ) {
     }
 
@@ -184,8 +201,7 @@ public class SongCache implements SongCacheChecker {
         var key = toCacheKey(songId);
         var fileName = "%s.%s".formatted(songId, query.streamFormat());
         var cachePath = joinPath(root, query.serverId(), "songs", key.part1, key.part2, key.part3, fileName);
-        var cachePathTmp = joinPath(cachePath.getParent(), fileName + ".tmp");
-        return new CachehPath(cachePath, cachePathTmp);
+        return new CachehPath(cachePath);
     }
 
     @Override

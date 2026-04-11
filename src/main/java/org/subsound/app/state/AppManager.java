@@ -607,7 +607,7 @@ public class AppManager {
                 songInfo.size(),
                 (total, count) -> {
                     if (isCancelled.get()) {
-                        return;
+                        throw new SongCache.CancelledDownloadException();
                     }
                     this.setState(old -> {
                         Optional<NowPlaying> nowPlaying = old.nowPlaying();
@@ -624,9 +624,15 @@ public class AppManager {
                                 new BufferingProgress(total, count)
                         )));
                     });
+                    if (isCancelled.get()) {
+                        throw new SongCache.CancelledDownloadException();
+                    }
                 }
         ));
         log.info("cached: result={} id={} title={}", cachedSong.result().name(), songInfo.id(), songInfo.title());
+        if (cachedSong.result() == SongCache.CacheResult.CANCELLED) {
+            return null;
+        }
         // Track this song as cached so it shows as available offline
         String checksum = null;
         try (var is = cachedSong.uri().toURL().openStream()) {
@@ -636,8 +642,8 @@ public class AppManager {
         }
         this.downloadManager.markAsCached(songInfo, checksum);
         AppState appState = this.currentState.getValue();
-        var currentSongId = appState.nowPlaying().map(NowPlaying::song).map(SongInfo::id).orElse("");
-        if (!currentSongId.equals(songInfo.id())) {
+        var currentRequestId = appState.nowPlaying().map(NowPlaying::requestId).orElse(null);
+        if (!requestId.equals(currentRequestId)) {
             // we changed song while loading. Ignore this and do nothing:
             return cachedSong;
         }
