@@ -15,6 +15,8 @@ import org.subsound.utils.Utils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +32,7 @@ public class DownloadManager {
             .expireAfterAccess(Duration.ofMinutes(10))
             .maximumSize(200)
             .build();
+    private final Set<String> queuedIds = ConcurrentHashMap.newKeySet();
     private volatile boolean running = true;
 
     public DownloadManager(
@@ -40,6 +43,13 @@ public class DownloadManager {
         this.dbService = dbService;
         this.songCache = songCache;
         this.onEvent = onEvent;
+        // Initialize in-memory set from DB (all non-CACHED statuses)
+        dbService.listDownloadQueue(List.of(
+                DownloadStatus.PENDING,
+                DownloadStatus.DOWNLOADING,
+                DownloadStatus.FAILED,
+                DownloadStatus.COMPLETED
+        )).forEach(item -> queuedIds.add(item.songId()));
         startQueueProcessor();
     }
 
@@ -94,9 +104,14 @@ public class DownloadManager {
     }
 
     public void enqueue(SongInfo songInfo) {
+        queuedIds.add(songInfo.id());
         dbService.addToDownloadQueue(songInfo);
         songStatusCache.invalidate(songInfo.id());
         this.publishEvent(songInfo.id());
+    }
+
+    public int getQueuedCount() {
+        return queuedIds.size();
     }
 
     public void markAsCached(SongInfo songInfo, String checksum) {

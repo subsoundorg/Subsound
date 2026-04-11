@@ -41,6 +41,7 @@ public class PlaylistsStore {
     private final Object lock = new Object();
     private final GSongStore songStore;
     private GPlaylist starredPlaylist;
+    private GPlaylist downloadedPlaylist;
 
     public PlaylistsStore(AppManager appManager) {
         this.appManager = appManager;
@@ -96,9 +97,12 @@ public class PlaylistsStore {
                         }
                     }).join();
 
-                    // Capture starred playlist reference on first load
+                    // Capture starred/downloaded playlist references on first load
                     if (starredPlaylist == null && metaStore.getNItems() > 0) {
                         starredPlaylist = metaStore.getItem(0);
+                    }
+                    if (downloadedPlaylist == null && metaStore.getNItems() > 1) {
+                        downloadedPlaylist = metaStore.getItem(1);
                     }
 
                     // Update backing state
@@ -242,6 +246,25 @@ public class PlaylistsStore {
         }
 
         return new Differences(indexDiff.removalIndices(), insertions);
+    }
+
+    public void updateDownloadedCount(int count) {
+        var sp = this.downloadedPlaylist;
+        if (sp == null) {
+            return;
+        }
+        var old = sp.getPlaylist();
+        Utils.runOnMainThread(() -> {
+            sp.setValue(new PlaylistSimple(
+                    old.id(), old.name(), old.kind(), old.coverArtId(), count, old.changedAt(), old.created()
+            ));
+            for (int i = 0; i < metaStore.getNItems(); i++) {
+                if (DOWNLOADED_ID.equals(metaStore.getItem(i).getId())) {
+                    metaStore.emitItemsChanged(i, 1, 1);
+                    break;
+                }
+            }
+        });
     }
 
     public void updateStarredCount(int count) {

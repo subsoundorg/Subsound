@@ -802,6 +802,7 @@ public class AppManager {
                 }
                 case PlayerAction.AddToDownloadQueue a -> {
                     this.downloadManager.enqueue(a.song());
+                    this.playlistsStore.updateDownloadedCount(this.downloadManager.getQueuedCount());
                     this.toast(new PlayerAction.Toast(new org.gnome.adw.Toast("Added to download queue")));
                 }
                 case PlayerAction.CreatePlaylist c -> {
@@ -826,6 +827,7 @@ public class AppManager {
                     for (var song : a.songs()) {
                         this.downloadManager.enqueue(song.getSongInfo());
                     }
+                    this.playlistsStore.updateDownloadedCount(this.downloadManager.getQueuedCount());
                     this.toast(new PlayerAction.Toast(new org.gnome.adw.Toast("Added %d items to download queue".formatted(a.songs().size()))));
                 }
                 case PlayerAction.OverrideNetworkStatus(var a) -> {
