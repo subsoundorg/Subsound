@@ -32,18 +32,18 @@
 
   <launchable type="desktop-id">io.github.Subsound.desktop</launchable>
 
-  <url type="homepage">https://github.com/esiqveland/subsound-gtk</url>
-  <url type="bugtracker">https://github.com/esiqveland/subsound-gtk/issues</url>
+  <url type="homepage">https://github.com/subsoundorg/subsound-gtk</url>
+  <url type="bugtracker">https://github.com/subsoundorg/subsound-gtk/issues</url>
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/esiqveland/subsound-gtk/main/screenshots/artistsv3.png</image>
+      <image>https://raw.githubusercontent.com/subsoundorg/subsound-gtk/main/screenshots/artistsv3.png</image>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/esiqveland/subsound-gtk/main/screenshots/starredv7.png</image>
+      <image>https://raw.githubusercontent.com/subsoundorg/subsound-gtk/main/screenshots/starredv7.png</image>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/esiqveland/subsound-gtk/main/screenshots/searchv2.png</image>
+      <image>https://raw.githubusercontent.com/subsoundorg/subsound-gtk/main/screenshots/searchv2.png</image>
     </screenshot>
   </screenshots>
 
