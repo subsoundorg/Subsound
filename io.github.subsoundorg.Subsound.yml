@@ -6,6 +6,7 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.openjdk25
 command: Subsound
 finish-args:
+  - "--env=JAVA_HOME=/app/jre"
   - "--env=JAVA_LOG_LEVEL=WARN"
   - "--socket=pulseaudio"
   - "--socket=wayland"
