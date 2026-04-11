@@ -7,7 +7,7 @@ import org.junit.Test;
 
 /**
  * Integration test that calls a real Navidrome/Subsonic server.
- * Run manually with a configured server in ~/.local/share/io.github.Subsound/config.json
+ * Run manually with a configured server in ~/.local/share/io.github.subsoundorg.Subsound/config.json
  */
 @Ignore("Requires a real server connection")
 public class SubsonicClientIntegrationTest {

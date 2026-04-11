@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.Subsound</id>
+  <id>io.github.subsoundorg.Subsound</id>
 
   <name>Subsound</name>
   <summary>Stream music from your Navidrome or Subsonic server</summary>
@@ -26,11 +26,11 @@
     </ul>
   </description>
 
-  <developer id="io.github.Subsound">
+  <developer id="io.github.subsoundorg.Subsound">
     <name>Eivind Larsen</name>
   </developer>
 
-  <launchable type="desktop-id">io.github.Subsound.desktop</launchable>
+  <launchable type="desktop-id">io.github.subsoundorg.Subsound.desktop</launchable>
 
   <url type="homepage">https://github.com/subsoundorg/subsound-gtk</url>
   <url type="bugtracker">https://github.com/subsoundorg/subsound-gtk/issues</url>

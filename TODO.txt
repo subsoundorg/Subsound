@@ -1,8 +1,8 @@
 # TODO
 
 ## RELEASE V1
-- [X] flatpak: the parent config/cache folder must be named <app-id> `io.github.Subsound`
-- [X] flatpak: maybe need to change <app-id> to `io.github.Subsound`
+- [X] flatpak: the parent config/cache folder must be named <app-id> `io.github.subsoundorg.Subsound`
+- [X] flatpak: maybe need to change <app-id> to `io.github.subsoundorg.Subsound`
 - [X] flatpak: fix frontpage screen not working after first launch configuration is completed
 - [X] flatpak: logout/reset account
 - [X] flatpak: decide how to store the password: config file or libsecret ?

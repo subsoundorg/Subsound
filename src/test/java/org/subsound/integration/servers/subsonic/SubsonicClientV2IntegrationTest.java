@@ -7,7 +7,7 @@ import org.subsound.integration.platform.secret.NoopSecretService;
 
 /**
  * Integration test that calls a real Navidrome/Subsonic server using SubsonicClientV2.
- * Run manually with a configured server in ~/.config/io.github.Subsound/config.json
+ * Run manually with a configured server in ~/.config/io.github.subsoundorg.Subsound/config.json
  */
 @Ignore("Requires a real server connection")
 public class SubsonicClientV2IntegrationTest {

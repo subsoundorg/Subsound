@@ -50,7 +50,7 @@ public final class LibsecretService implements SecretService {
         );
         attributes.insert("server-id", SchemaAttributeType.STRING);
         attributes.insert("username", SchemaAttributeType.STRING);
-        return new Schema("io.github.Subsound.Credentials", SchemaFlags.NONE, attributes);
+        return new Schema("io.github.subsoundorg.Subsound.Credentials", SchemaFlags.NONE, attributes);
     }
 
     @Override

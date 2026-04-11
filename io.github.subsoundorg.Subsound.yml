@@ -1,4 +1,4 @@
-id: io.github.Subsound
+id: io.github.subsoundorg.Subsound
 runtime: org.gnome.Platform
 runtime-version: '49'
 sdk: org.gnome.Sdk
@@ -48,16 +48,16 @@ modules:
       - tar vx --directory=/app --strip-components=1 --file build/distributions/*shadow*.tar
       - install -Dm755 Subsound.sh /app/bin/Subsound.sh
       # install icons and desktop files:
-      - install --mode=0644 -D src/main/resources/icons/generated/icon-256.png /app/share/icons/hicolor/256x256/apps/io.github.Subsound.png
-      - install --mode=0644 -D src/main/resources/icons/generated/icon-64.png  /app/share/icons/hicolor/64x64/apps/io.github.Subsound.png
-      - install --mode=0644 -D src/main/resources/icons/generated/icon-48.png  /app/share/icons/hicolor/48x48/apps/io.github.Subsound.png
-      - install --mode=0644 -D src/main/resources/icons/generated/icon-32.png  /app/share/icons/hicolor/32x32/apps/io.github.Subsound.png
-      - install --mode=0644 -D src/main/resources/icons/generated/icon-24.png  /app/share/icons/hicolor/24x24/apps/io.github.Subsound.png
-      - install --mode=0644 -D src/main/resources/icons/generated/icon-16.png  /app/share/icons/hicolor/16x16/apps/io.github.Subsound.png
-      - install --mode=0644 -D src/main/resources/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.Subsound.svg
+      - install --mode=0644 -D src/main/resources/icons/generated/icon-256.png /app/share/icons/hicolor/256x256/apps/io.github.subsoundorg.Subsound.png
+      - install --mode=0644 -D src/main/resources/icons/generated/icon-64.png  /app/share/icons/hicolor/64x64/apps/io.github.subsoundorg.Subsound.png
+      - install --mode=0644 -D src/main/resources/icons/generated/icon-48.png  /app/share/icons/hicolor/48x48/apps/io.github.subsoundorg.Subsound.png
+      - install --mode=0644 -D src/main/resources/icons/generated/icon-32.png  /app/share/icons/hicolor/32x32/apps/io.github.subsoundorg.Subsound.png
+      - install --mode=0644 -D src/main/resources/icons/generated/icon-24.png  /app/share/icons/hicolor/24x24/apps/io.github.subsoundorg.Subsound.png
+      - install --mode=0644 -D src/main/resources/icons/generated/icon-16.png  /app/share/icons/hicolor/16x16/apps/io.github.subsoundorg.Subsound.png
+      - install --mode=0644 -D src/main/resources/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.subsoundorg.Subsound.svg
       - install --mode=0644 -D src/main/resources/icons/hicolor/scalable/status/checkmark-circle-symbolic.svg /app/share/icons/hicolor/scalable/status/checkmark-circle-symbolic.svg
-      - install --mode=0644 -D io.github.Subsound.desktop  /app/share/applications/io.github.Subsound.desktop
-      - install --mode=0644 -D build/resources/main/app/io.github.Subsound.metainfo.xml /app/share/metainfo/io.github.Subsound.metainfo.xml
+      - install --mode=0644 -D io.github.subsoundorg.Subsound.desktop  /app/share/applications/io.github.subsoundorg.Subsound.desktop
+      - install --mode=0644 -D build/resources/main/app/io.github.subsoundorg.Subsound.metainfo.xml /app/share/metainfo/io.github.subsoundorg.Subsound.metainfo.xml
     only-arches:
       - x86_64
     sources:
@@ -65,7 +65,7 @@ modules:
       - type: file
         path: src/main/resources/app/Subsound.sh
       - type: file
-        path: src/main/resources/app/io.github.Subsound.desktop
+        path: src/main/resources/app/io.github.subsoundorg.Subsound.desktop
       - type: file
         url: https://services.gradle.org/distributions/gradle-9.3.0-all.zip
         sha256: 046f36af261f2c6ed09eef06bf25b93d1f20d5220991bb8a3f08fd5fb6f6629a
