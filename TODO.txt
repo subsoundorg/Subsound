@@ -12,12 +12,6 @@
 
 ## release eventually
 - [ ] clicking album art should take you to the current playContext and select the correct song in the listview.
-## General
-
-Playlist:
-    - next level: "keep all songs available offline"
-    - Find a way to add a context menu to the rows in the playlist page + button to remove from playlist
-    - what about enable multi-select, then a delete action button becomes visible on the top of the playlist?
 
 GSongInfo:
  - [ ] extend is-playing to a richer playing state (buffering, paused ?)
@@ -73,7 +67,7 @@ worklog:
     - [X] Server settings: add max bitrate constraint: (none, 128, 192, 320)
     - [ ] Server settings: add note about clearing stored song data to reset stored transcode format
   - [X] transcode configurable
-  - [ ] a way to clear transcode cache. need to trigger download sync after clearing cache
+  - [X] a way to clear transcode cache. need to trigger download sync after clearing cache
   - [ ] we should only transcode flac/wav or bitrate > X kbps. f.ex. a 193kbps mp3 should not be transcoded, and probably not a 320kbps mp3 either. mp3 should probably not be transcoded to opus f.ex.
 - [X] replace gtk.image with gtk.picture? https://docs.gtk.org/gtk4/class.Picture.html
 - [X] PlayerBar: title/album
@@ -149,10 +143,12 @@ worklog:
   - [X] ctrl+s for shuffle modes
   - [ ] ctrl+r to reload/refresh?
   - [X] ctrl+space for play/pause
+  - [ ] left/right arrow keys for seek +/- 10 seconds
   - [ ] space should always play/pause
     - this looks very hard to do since spacebar is also the activation key for buttons / list items in GTK4
 - Offline Mode
   - [ ] While online browsing, store the latest downloaded metadata locally as we browse. especially for playlists, but could be nice for new artists and albums added.
+    - [X] done for playlists. if a playlist has new songs, we will store the metadata for those songs in the database
   - [X] Record scrobbles offline --> sync later to server when we get back online
   - [X] show a download status icon on each songrow if its on the download (available offline) list
     - [ ] find a prettier icon/way to show download status
@@ -160,6 +156,7 @@ worklog:
   - [X] when in offline mode, show each row not in the song cache as greyed/disabled rows
   - [X] show download status on the playlist song rows
   - [ ] show status somewhere during sync
+  - [ ] song count in download list does not update when we add songs to download
 - Onboarding
   - [X] Launch without crashing on zero config
   - [X] Detect we are first launch / have no configuration to load
@@ -194,6 +191,7 @@ worklog:
   - [X] alternative sort orders for playlists
   - [X] when I have a playlist open in the playlistlistviewv2, go to another artist or album, add songs, and then back to the playlist, the playlist must show any newly added songs
   - [x] remove song from playlist
+  - [ ] ctrl+f should trigger a quick-filter for filtering the playlist
   - [ ] make refresh of playlist smoother: restore scroll position, make a diff and modify listmodel instead of clear + addAll
   - [ ] multi select to remove songs from playlist
   - [ ] when I add a new song to a playlist i am currently playing from, I expect the newly added songs to end up at the end of the current playqueue
