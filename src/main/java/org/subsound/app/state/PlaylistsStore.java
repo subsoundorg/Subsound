@@ -9,6 +9,8 @@ import org.subsound.utils.Utils;
 import org.gnome.glib.Type;
 import org.gnome.gio.ListStore;
 import org.gnome.gobject.GObject;
+import org.gnome.gobject.GObject.NotifyCallback;
+import org.javagi.gobject.SignalConnection;
 import org.javagi.gobject.annotations.Property;
 import org.javagi.gobject.types.Types;
 import org.slf4j.Logger;
@@ -23,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class PlaylistsStore {
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(PlaylistsStore.class);
@@ -177,7 +180,7 @@ public class PlaylistsStore {
                         gPlaylist.setSongs(gSongs);
                         // Signal downstream models (FilterListModel, SortListModel) to re-evaluate this item
                         for (int i = 0; i < metaStore.getNItems(); i++) {
-                            if (metaStore.getItem(i) == gPlaylist) {
+                            if (playlistId.equals(metaStore.getItem(i).getId())) {
                                 metaStore.emitItemsChanged(i, 1, 1);
                                 break;
                             }
@@ -237,7 +240,7 @@ public class PlaylistsStore {
                     old.id(), old.name(), old.kind(), old.coverArtId(), count, old.changedAt(), old.created()
             ));
             for (int i = 0; i < metaStore.getNItems(); i++) {
-                if (metaStore.getItem(i) == sp) {
+                if (STARRED_ID.equals(metaStore.getItem(i).getId())) {
                     metaStore.emitItemsChanged(i, 1, 1);
                     break;
                 }
@@ -280,6 +283,11 @@ public class PlaylistsStore {
         public void setValue(PlaylistSimple value) {
             this.value = value;
             this.notify("name");
+        }
+        public SignalConnection<NotifyCallback> onChanged(Consumer<GPlaylist> callback) {
+            return this.onNotify("name", paramSpec -> {
+                callback.accept(this);
+            });
         }
 
         public static GPlaylist newInstance(PlaylistSimple value) {

@@ -23,6 +23,8 @@ import org.gnome.gtk.SortListModel;
 import org.gnome.gtk.Stack;
 import org.gnome.pango.EllipsizeMode;
 import org.javagi.gio.ListIndexModel;
+import org.javagi.gobject.SignalConnection;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.subsound.app.state.AppManager;
@@ -34,7 +36,6 @@ import org.subsound.integration.ServerClient.ArtistAlbumInfo;
 import org.subsound.integration.ServerClient.HomeOverview;
 import org.subsound.integration.ServerClient.ObjectIdentifier.PlaylistIdentifier;
 import org.subsound.integration.ServerClient.PlaylistKind;
-import org.subsound.integration.ServerClient.PlaylistSimple;
 import org.subsound.persistence.ThumbnailCache;
 import org.subsound.ui.components.AlbumFlowBoxChild;
 import org.subsound.ui.components.AlbumsFlowBox;
@@ -496,7 +497,7 @@ public class FrontpagePage extends Box implements AppManager.StateListener {
                 var listItem = (ListItem) obj;
                 var gp = (GPlaylist) listItem.getItem();
                 if (gp != null && listItem.getChild() instanceof PlaylistOverviewChild child) {
-                    child.bind(gp.getPlaylist());
+                    child.bind(gp);
                 }
             });
             factory.onUnbind(obj -> {
@@ -538,6 +539,8 @@ public class FrontpagePage extends Box implements AppManager.StateListener {
         private final RoundedAlbumArt art;
         private final Label nameLabel;
         private final Label countLabel;
+        @Nullable private GPlaylist gPlaylist;
+        @Nullable private SignalConnection<NotifyCallback> gpSignal;
 
         public PlaylistOverviewChild(AppManager appManager, int coverSize) {
             super(HORIZONTAL, 10);
@@ -582,13 +585,30 @@ public class FrontpagePage extends Box implements AppManager.StateListener {
             this.append(textBox);
         }
 
-        public void bind(PlaylistSimple playlist) {
+        public void bind(GPlaylist gp) {
+            this.gPlaylist = gp;
+            this.gpSignal = gp.onChanged(p -> this.refresh());
+            this.refresh();
+        }
+
+        private void refresh() {
+            var gp = this.gPlaylist;
+            if (gp == null) {
+                return;
+            }
+            var playlist = gp.getPlaylist();
             this.nameLabel.setLabel(playlist.name());
             this.countLabel.setLabel(playlist.songCount() + " songs");
             this.art.update(playlist.coverArtId());
         }
 
         public void unbind() {
+            this.gPlaylist = null;
+            var sig = this.gpSignal;
+            if (sig != null) {
+                gpSignal.disconnect();
+                this.gpSignal = null;
+            }
             this.nameLabel.setLabel("");
             this.countLabel.setLabel("");
             this.art.update(Optional.empty());
