@@ -1,6 +1,6 @@
 id: io.github.subsoundorg.Subsound
 runtime: org.gnome.Platform
-runtime-version: '50'
+runtime-version: '49'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.openjdk25
