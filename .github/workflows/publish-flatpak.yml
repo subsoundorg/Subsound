@@ -9,31 +9,18 @@ jobs:
     name: "Build Flatpak"
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set source tag in manifest
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          VERSION="${TAG#v}"
-          sed -i "s/tag: v[0-9][0-9.]*$/tag: ${TAG}/" io.github.subsoundorg.Subsound.yml
-          sed -i "s/-Pversion=[0-9][0-9.]*/-Pversion=${VERSION}/" io.github.subsoundorg.Subsound.yml
-          echo "=== tag and version in manifest ==="
-          grep "tag:" io.github.subsoundorg.Subsound.yml
-          grep "Pversion" io.github.subsoundorg.Subsound.yml
-
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: io.github.subsoundorg.Subsound.flatpak
           manifest-path: io.github.subsoundorg.Subsound.yml
-          run-tests: false
-
+          cache-key: flatpak-builder-${{ github.sha }}
       # Generate static deltas so updates only download changed objects
       - name: Add static deltas
         run: flatpak build-update-repo repo --generate-static-deltas
-
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-repo
@@ -45,7 +32,6 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
           name: flatpak-repo
