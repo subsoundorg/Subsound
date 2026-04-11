@@ -199,7 +199,6 @@ public class PlaybinPlayer implements Player {
             log.error("Player: GStreamer error: {}", error.get().readMessage());
             setPlayerState(END_OF_STREAM);
             notifyState();
-            loop.quit();
         } else if (msgTypes.contains(MessageType.ASYNC_DONE)) {
             // if the seek operation succeeded.
             // Flushing seeks will trigger a preroll, which will emit MessageType.ASYNC_DONE

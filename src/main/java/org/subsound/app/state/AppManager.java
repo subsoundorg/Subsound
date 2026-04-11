@@ -62,6 +62,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -105,6 +106,7 @@ public class AppManager {
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
     private volatile ScheduledFuture<?> pendingPreferenceSave;
     private volatile UUID scrobbledForRequestId = null;
+    private final AtomicInteger loadGeneration = new java.util.concurrent.atomic.AtomicInteger(0);
 
     private ToastOverlay toastOverlay;
     private AppNavigation navigator;
@@ -524,16 +526,20 @@ public class AppManager {
 
 
     public CompletableFuture<LoadSongResult> loadSourceAsync(PlayerAction.PlaySong songInfo) {
+        int myGeneration = loadGeneration.incrementAndGet();
         return CompletableFuture.supplyAsync(
                 () -> this.loadSourceSync(songInfo),
                 ASYNC_EXECUTOR
         ).handle((result, throwable) -> {
+            boolean isCurrentLoad = loadGeneration.get() == myGeneration;
             if (throwable != null) {
                 log.error("loadSourceAsync: failed to load: {} {}", songInfo.song().id(), songInfo.song().title(), throwable);
-                this.playQueue.attemptPlayNext();
+                if (isCurrentLoad) {
+                    this.playQueue.attemptPlayNext();
+                }
                 return null;
             }
-            if (result == null) {
+            if (result == null && isCurrentLoad) {
                 // loadSourceSync returned null (song not available); toast already shown
                 this.playQueue.attemptPlayNext();
             }
