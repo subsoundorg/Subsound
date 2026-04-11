@@ -1,10 +1,10 @@
 id: io.github.subsoundorg.Subsound
 runtime: org.gnome.Platform
-runtime-version: '49'
+runtime-version: '50'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.openjdk25
-command: /app/bin/Subsound.sh
+command: Subsound
 finish-args:
   - "--env=PATH=/app/jre/bin:/usr/bin"
   - "--env=JAVA_HOME=/app/jre"
@@ -25,21 +25,19 @@ modules:
   - name: Subsound
     buildsystem: simple
     build-options:
-      append-path: "/usr/lib/sdk/openjdk25/jvm/openjdk-25/bin"
+      append-path: "/usr/lib/sdk/openjdk25/gradle/bin:/usr/lib/sdk/openjdk25/jvm/openjdk-25/bin"
       env:
         JAVA_HOME: /usr/lib/sdk/openjdk25/jvm/openjdk-25
     build-commands:
-      # We make the Gradle wrapper use our local .zip file
-      # NOTA: mind the fact that expand() will reduce the backslashes in template, so double them!
-      - ln --force gradle-9.3.0-all.zip gradle/wrapper/gradle-9.3.0-all.zip
+      - gradle -v
       - >-
         sed --regexp-extended --in-place
         's,https\\://services.gradle.org/distributions/,file:\/run/build/Subsound/,'
         gradle/wrapper/gradle-wrapper.properties
-      - bash gradlew --offline -Pversion=0.0.0 build
+      - gradle --offline -Pversion=0.0.0 build
       # Extract libs and bin from gradle build *.tar file to /app
       - tar vx --directory=/app --strip-components=1 --file build/distributions/*shadow*.tar
-      - install -Dm755 Subsound.sh /app/bin/Subsound.sh
+      - install -Dm755 src/main/resources/app/Subsound.sh /app/bin/Subsound
       # install icons and desktop files:
       - install --mode=0644 -D src/main/resources/icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.subsoundorg.Subsound.svg
       - install --mode=0644 -D src/main/resources/icons/hicolor/scalable/status/checkmark-circle-symbolic.svg -t /app/share/icons/hicolor/scalable/status/
@@ -48,9 +46,6 @@ modules:
     only-arches:
       - x86_64
     sources:
-      - type: file
-        url: https://services.gradle.org/distributions/gradle-9.3.0-all.zip
-        sha256: 046f36af261f2c6ed09eef06bf25b93d1f20d5220991bb8a3f08fd5fb6f6629a
       - type: git
         url: https://github.com/subsoundorg/subsound-gtk
         tag: v0.6.3
