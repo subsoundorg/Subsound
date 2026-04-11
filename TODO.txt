@@ -97,8 +97,10 @@ worklog:
   - [X] search by artist
   - [X] search by album
   - [X] search by song title
+  - [X] search for playlists
   - [X] search UI on ctrl+k
   - [X] find a place to put the search button for discovery
+  - [ ] place quick-actions as default in the empty space before any text has been searched for?
 - HomePage
   - [X] Reuse between page views so we dont lose state
   - [X] Refresh using button
