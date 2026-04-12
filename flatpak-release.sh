@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eou pipefail
+set -xeou pipefail
 
 # Determine version: git tag takes priority, fall back to GITHUB_REF (e.g. refs/tags/v0.6.9)
 if APP_VERSION=$(git describe --tags --abbrev=0 2>/dev/null); then
