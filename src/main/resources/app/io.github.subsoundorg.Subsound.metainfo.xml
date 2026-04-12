@@ -49,9 +49,14 @@
   </screenshots>
 
   <releases>
-    <release version="@version@" date="2026-03-07">
+    <release version="@version@" date="2026-04-12">
       <description>
         <p>Initial public release.</p>
+      </description>
+    </release>
+    <release version="v0.5.0" date="2026-03-07">
+      <description>
+        <p>Initial release.</p>
       </description>
     </release>
   </releases>
