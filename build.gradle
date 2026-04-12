@@ -1,6 +1,9 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.apache.tools.ant.taskdefs.condition.Os
 
+import java.nio.file.Files
+import java.util.Optional
+
 plugins {
     id 'application'
     id 'java'
@@ -14,6 +17,25 @@ repositories {
     mavenCentral()
     google()
 }
+
+def stripV = { String s -> s.replaceFirst(/^v/, '') }
+
+def versionFromFile = {
+    try {
+        def content = Files.readString(java.nio.file.Path.of("./VERSION")).strip()
+        return Optional.of(content).filter { !it.isBlank() }.map(stripV)
+    } catch (IOException ignored) {
+        return Optional.<String>empty()
+    }
+}
+
+def appVersion = Optional
+        .ofNullable(System.getenv("GITHUB_REF_NAME"))
+        .map(stripV)
+        .filter { !it.isBlank() }
+        .or(versionFromFile)
+        .orElse(version)
+setVersion(appVersion)
 
 def javagiVersion = "0.14.1"
 def recordBuilderVersion = "52"
