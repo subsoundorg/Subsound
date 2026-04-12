@@ -14,7 +14,6 @@ finish-args:
   - "--device=dri"
   - "--share=ipc"
   - "--share=network"
-  - "--own-name=org.mpris.MediaPlayer2.Subsound"
 modules:
   - name: openjdk
     buildsystem: 'simple'

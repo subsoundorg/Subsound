@@ -43,6 +43,7 @@ public class MPrisController implements MediaPlayer2, MediaPlayer2Player, AppMan
     private final Channel<PropertiesChanged> dbusMessageChannel = Channel.newBufferedDefaultChannel();
     private final MprisApplicationProperties mprisApplicationProperties;
     private final AtomicReference<MPRISPlayerState> playerState = new AtomicReference<>();
+    private final String playerBusName = "org.mpris.MediaPlayer2.%s".formatted(Constants.APP_ID);
 
     public MPrisController(AppManager appManager, ArtworkHttpServer artworkServer) {
         this.appManager = appManager;
@@ -84,7 +85,7 @@ public class MPrisController implements MediaPlayer2, MediaPlayer2Player, AppMan
         try (DBusConnection conn = builder.build()) {
             this.appManager.addOnStateChanged(this);
             conn.exportObject("/org/mpris/MediaPlayer2", this);
-            conn.requestBusName("org.mpris.MediaPlayer2.Subsound");
+            conn.requestBusName(this.playerBusName);
             while (!isShutdown.get()) {
                 var msg = dbusMessageChannel.receive();
                 if (msg != null) {
