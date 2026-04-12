@@ -24,6 +24,7 @@
       <li>MPRIS media player integration for desktop media controls</li>
       <li>Native GTK4/Adwaita interface designed for GNOME</li>
     </ul>
+    <p>For offline mode, remember to first Sync Library.</p>
   </description>
 
   <developer id="io.github.subsoundorg">
@@ -52,6 +53,13 @@
     <release version="@version@" date="2026-04-12">
       <description>
         <p>Initial public release.</p>
+        <ul>
+          <li>Browse albums</li>
+          <li>Browse artists</li>
+          <li>Browse playlists</li>
+          <li>Offline mode</li>
+          <li>MPRIS Support</li>
+        </ul>
       </description>
     </release>
     <release version="0.5.0" date="2026-03-07">
