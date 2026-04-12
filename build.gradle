@@ -70,6 +70,7 @@ tasks.register("processVersion", Copy) {
 }
 
 processResources {
+    inputs.property("version", version)
     filesMatching("app/io.github.subsoundorg.Subsound.metainfo.xml") {
         filter(ReplaceTokens, tokens: ['version': version])
     }
