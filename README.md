@@ -1,4 +1,4 @@
-# subsound-gtk
+# Subsound
 
 Subsonic compatible player in GTK4 / Adwaita
 
