@@ -67,6 +67,7 @@ public class ServerBadge extends Box implements AppManager.StateListener {
 
         this.triggerScanButton = ActionRow.builder()
                 .setTitle("Trigger scan")
+                .setTooltipText("Start server scan for new songs and folders")
                 .setActivatable(true)
                 .build();
         var scanIcon = Image.fromIconName("emblem-synchronizing-symbolic");
@@ -128,7 +129,7 @@ public class ServerBadge extends Box implements AppManager.StateListener {
         // Offline mode toggle
         this.offlineSwitch = SwitchRow.builder()
                 .setTitle("Offline mode")
-                .setSubtitle("Use only cached data")
+                .setSubtitle("Use only cached data. Remember to Sync Library to enable offline mode.")
                 .build();
         this.offlineSwitch.onNotify("active", _ -> {
             if (updatingSwitch.get()) return;
@@ -143,7 +144,7 @@ public class ServerBadge extends Box implements AppManager.StateListener {
         this.syncButton = ActionRow.builder()
                 .setTitle("Sync library")
                 .setActivatable(true)
-                .setTooltipText("Sync metadata for offline use")
+                .setTooltipText("Syncs metadata for offline use")
                 .build();
         this.syncButton.addCssClass(Classes.flat.className());
         this.syncButton.addCssClass(Classes.heading.className());
