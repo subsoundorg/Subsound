@@ -21,6 +21,9 @@ public record DownloadQueueItem(
     public enum DownloadStatus {
         PENDING, DOWNLOADING, COMPLETED, FAILED, CACHED;
 
+        public boolean isDownloaded() {
+            return this == CACHED || this == COMPLETED;
+        }
         public GDownloadState toState() {
             return switch (this) {
                 case PENDING -> GDownloadState.PENDING;

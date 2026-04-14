@@ -457,15 +457,22 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
                 return false; // GDK_KEY_Delete
             }
             var playlist = currentPlaylist.get();
-            if (playlist == null || playlist.kind() != PlaylistKind.NORMAL) {
+            if (playlist == null) {
                 return false;
             }
             var entry = selectionModel.getSelectedItem();
             if (entry == null) {
                 return false;
             }
-            confirmRemoveFromPlaylist(entry);
-            return true;
+            if (playlist.kind() == PlaylistKind.NORMAL) {
+                removeFromPlaylist(entry);
+                return true;
+            }
+            if (playlist.kind() == PlaylistKind.DOWNLOADED) {
+                removeFromDownloads(entry);
+                return true;
+            }
+            return false;
         });
         this.listView.addController(keyController);
 
@@ -826,44 +833,52 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
         });
     }
 
-    private void confirmRemoveFromPlaylist(GPlaylistEntry entry) {
+    private void removeFromPlaylist(GPlaylistEntry entry) {
         var playlist = currentPlaylist.get();
         if (playlist == null || playlist.kind() != PlaylistKind.NORMAL) {
             return;
         }
         int deletedPos = entry.position();
-        AdwDialogHelper.ofDialog(
-                PlaylistListViewV2.this,
-                "Remove from playlist",
-                "Remove \"%s\" from \"%s\"?".formatted(entry.song().title(), playlist.name()),
-                List.of(
-                        new AdwDialogHelper.Response(CANCEL_LABEL_ID, "_Cancel", DEFAULT),
-                        new AdwDialogHelper.Response("delete", "_Remove", DESTRUCTIVE)
-                )
-        ).thenAccept(result -> {
-            if (!"delete".equals(result.label())) {
-                return;
+        this.onAction.apply(new PlayerAction.RemoveFromPlaylist(
+                entry.song(),
+                deletedPos,
+                playlist.id(),
+                playlist.name()
+        ));
+        Utils.runOnMainThread(() -> {
+            for (int i = 0; i < listModel.getNItems(); i++) {
+                if (listModel.getItem(i) == entry) {
+                    listModel.remove(i);
+                    break;
+                }
             }
-            this.onAction.apply(new PlayerAction.RemoveFromPlaylist(
-                    entry.song(),
-                    deletedPos,
-                    playlist.id(),
-                    playlist.name()
-            ));
-            Utils.runOnMainThread(() -> {
-                for (int i = 0; i < listModel.getNItems(); i++) {
-                    if (listModel.getItem(i) == entry) {
-                        listModel.remove(i);
-                        break;
-                    }
+            for (int i = 0; i < listModel.getNItems(); i++) {
+                var e = listModel.getItem(i);
+                if (e.position() > deletedPos) {
+                    e.setPosition(e.position() - 1);
                 }
-                for (int i = 0; i < listModel.getNItems(); i++) {
-                    var e = listModel.getItem(i);
-                    if (e.position() > deletedPos) {
-                        e.setPosition(e.position() - 1);
-                    }
+            }
+        });
+    }
+
+    private void removeFromDownloads(GPlaylistEntry entry) {
+        var playlist = currentPlaylist.get();
+        if (playlist == null || playlist.kind() != PlaylistKind.DOWNLOADED) {
+            return;
+        }
+        this.onAction.apply(new PlayerAction.RemoveFromPlaylist(
+                entry.song(),
+                entry.position(),
+                playlist.id(),
+                playlist.name()
+        ));
+        Utils.runOnMainThread(() -> {
+            for (int i = 0; i < listModel.getNItems(); i++) {
+                if (listModel.getItem(i) == entry) {
+                    listModel.remove(i);
+                    break;
                 }
-            });
+            }
         });
     }
 
@@ -943,7 +958,17 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
             var removeMenuItem = menuItem("Remove from Playlist");
             removeMenuItem.onClicked(() -> {
                 menuPopover.popdown();
-                confirmRemoveFromPlaylist(entry);
+                removeFromPlaylist(entry);
+            });
+            menuContent.append(removeMenuItem);
+        }
+
+        if (playlist != null && playlist.kind() == PlaylistKind.DOWNLOADED) {
+            var removeMenuItem = menuItem("Remove from Downloads");
+            removeMenuItem.addCssClass("destructive-action");
+            removeMenuItem.onClicked(() -> {
+                menuPopover.popdown();
+                removeFromDownloads(entry);
             });
             menuContent.append(removeMenuItem);
         }

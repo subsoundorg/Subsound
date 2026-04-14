@@ -800,6 +800,11 @@ public class AppManager {
                     this.toast(new PlayerAction.Toast(new org.gnome.adw.Toast(msg)));
                 }
                 case PlayerAction.RemoveFromPlaylist a -> {
+                    if (PlaylistsStore.DOWNLOADED_ID.equals(a.playlistId())) {
+                        this.downloadManager.removeFromQueue(a.song().id());
+                        this.playlistsStore.updateDownloadedCount(this.downloadManager.getQueuedCount());
+                        break;
+                    }
                     this.useClient1(c -> c.playlistRemove(new PlaylistRemoveSongRequest(
                             a.playlistId(),
                             List.of(new ServerClient.SongRemoval(a.originalPosition(), a.song().id()))

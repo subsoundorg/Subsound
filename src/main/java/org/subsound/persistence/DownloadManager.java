@@ -114,6 +114,20 @@ public class DownloadManager {
         return queuedIds.size();
     }
 
+    public void removeFromQueue(String songId) {
+        queuedIds.remove(songId);
+        var current = getSongStatus(songId);
+        if (current.isPresent() && current.get().status().isDownloaded()) {
+            // File is on disk — keep it available offline but remove from explicit download list
+            dbService.updateDownloadProgress(songId, DownloadStatus.CACHED, 1.0, null);
+        } else {
+            // Not yet downloaded (PENDING / DOWNLOADING / FAILED) — remove entirely
+            dbService.removeFromDownloadQueue(songId);
+        }
+        songStatusCache.invalidate(songId);
+        this.publishEvent(songId);
+    }
+
     public void markAsCached(SongInfo songInfo, String checksum) {
         dbService.addToCacheTracking(songInfo, checksum);
         songStatusCache.invalidate(songInfo.id());
