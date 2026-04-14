@@ -3,7 +3,7 @@
   <id>io.github.subsoundorg.Subsound</id>
 
   <name>Subsound</name>
-  <summary>Stream music from your Navidrome or Subsonic server</summary>
+  <summary>Stream music from your Navidrome Server</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
@@ -39,15 +39,23 @@
 
   <screenshots>
     <screenshot type="default">
+      <caption>The Artist overview tab</caption>
       <image>https://raw.githubusercontent.com/subsoundorg/Subsound/main/screenshots/artistsv3.png</image>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/subsoundorg/Subsound/main/screenshots/starredv7.png</image>
+      <image>https://raw.githubusercontent.com/subsoundorg/Subsound/main/screenshots/starredv8.png</image>
+      <caption>The Playlist view</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/subsoundorg/Subsound/main/screenshots/searchv2.png</image>
+      <image>https://raw.githubusercontent.com/subsoundorg/Subsound/main/screenshots/searchv3.png</image>
+      <caption>The Quick Search box (Ctrl+K)</caption>
     </screenshot>
   </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#63452c</color>
+    <color type="primary" scheme_preference="dark">#241f31</color>
+  </branding>
 
   <releases>
     <release version="@version@" date="2026-04-12">
