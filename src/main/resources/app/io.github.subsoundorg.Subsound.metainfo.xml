@@ -58,7 +58,13 @@
   </branding>
 
   <releases>
-    <release version="@version@" date="2026-04-12">
+    <release version="@version@" date="2026-04-15">
+      <description>
+        <p>Fixed issue deleting from playlists</p>
+      </description>
+    </release>
+
+    <release version="0.6.15" date="2026-04-12">
       <description>
         <p>Initial public release.</p>
         <ul>
