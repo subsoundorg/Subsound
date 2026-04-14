@@ -10,9 +10,9 @@ A few samples of what the UI looks like:
 
 ![Artists listing](screenshots/artistsv3.png)
 
-![Playlists view](screenshots/starredv7.png)
+![Playlists view](screenshots/starredv8.png)
 
-![Search modal ( Ctrl+K )](screenshots/searchv2.png)
+![Search modal ( Ctrl+K )](screenshots/searchv3.png)
 
 ## Installation
 
