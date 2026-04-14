@@ -1,5 +1,9 @@
 # Subsound
 
+![](https://img.shields.io/flathub/v/io.github.subsoundorg.Subsound)
+
+[![Get it on Flathub](https://flathub.org/api/badge?locale=en)](https://flathub.org/apps/io.github.subsoundorg.Subsound)
+
 Subsonic compatible player in GTK4 / Adwaita
 
 Best used with [Navidrome](https://github.com/navidrome/navidrome).
@@ -16,7 +20,23 @@ A few samples of what the UI looks like:
 
 ## Installation
 
-Pending a Flatpak release, you can run from source or use the Flatpak beta release:
+Install from Flathub:
+
+```bash
+# Install
+flatpak install io.github.subsoundorg.Subsound
+
+# Run
+flatpak run io.github.subsoundorg.Subsound
+
+# Update
+flatpak update io.github.subsoundorg.Subsound
+```
+
+### Beta releases
+
+We also have a beta release available on the subsound-gtk-repo repo 
+where we push most builds before they are released to Flathub.
 
 ```bash
 # Add remote (one-time)
