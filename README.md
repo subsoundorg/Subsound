@@ -1,12 +1,19 @@
-# Subsound
-
 ![](https://img.shields.io/flathub/v/io.github.subsoundorg.Subsound)
 
-[![Get it on Flathub](https://flathub.org/api/badge?locale=en)](https://flathub.org/apps/io.github.subsoundorg.Subsound)
+# Subsound
 
 Subsonic compatible player in GTK4 / Adwaita
 
 Best used with [Navidrome](https://github.com/navidrome/navidrome).
+
+[![Get it on Flathub](https://flathub.org/api/badge?locale=en)](https://flathub.org/apps/io.github.subsoundorg.Subsound)
+
+Install from Flathub:
+
+```bash
+# Install
+$ flatpak install io.github.subsoundorg.Subsound
+```
 
 ## Screenshots
 
