@@ -58,7 +58,16 @@
   </branding>
 
   <releases>
-    <release version="@version@" date="2026-04-15">
+    <release version="@version@" date="2026-04-17">
+      <description>
+        <ul>
+          <li>Play queue is now saved and restored across app restarts</li>
+          <li>Fixed sometimes app not exiting cleanly</li>
+        </ul>
+      </description>
+    </release>
+
+    <release version="0.6.16" date="2026-04-15">
       <description>
         <p>Fixed issue deleting from playlists</p>
       </description>
