@@ -182,9 +182,9 @@ public class SyncService {
 
         var start = System.nanoTime();
 
-        List<Song> songs = new ArrayList<>();
+        List<DBSong> songs = new ArrayList<>();
         for (SongInfo songInfo : albumInfo.songs()) {
-            songs.add(Song.from(songInfo, serverId));
+            songs.add(DBSong.from(songInfo, serverId));
 
             // Collect song cover art for thumbnail caching
             songInfo.coverArt().ifPresent(collectedCoverArts::add);

@@ -89,6 +89,32 @@ public class PlayQueue implements AutoCloseable, PlaybinPlayer.OnStateChanged {
         }
     }
 
+    /**
+     * Restore queue from persisted state. Does NOT trigger playback.
+     * Must be called on the main thread before the GLib main loop starts.
+     */
+    public void restoreQueue(
+            List<GQueueItem> items,
+            Optional<Integer> position,
+            PlayMode playMode,
+            Optional<ObjectIdentifier> playContext
+    ) {
+        synchronized (lock) {
+            this.playContext = playContext;
+            this.playMode = playMode;
+            this.position = position.filter(p -> p >= 0 && p < items.size());
+
+            this.listStore.removeAll();
+            this.listStore.splice(0, 0, items.toArray(GQueueItem[]::new));
+            var pos = this.position.filter(p -> p >= 0 && p < listStore.getNItems());
+            if (pos.isPresent()) {
+                listStore.getItem(pos.get()).getSongInfo().setIsPlaying(true);
+            }
+
+            this.notifyState();
+        }
+    }
+
     public CompletableFuture<Void> playAndReplaceQueue(PlayerAction.PlayAndReplaceQueue a) {
         return Utils.doAsync(() -> {
             this.playContext = Optional.ofNullable(a.playContext());

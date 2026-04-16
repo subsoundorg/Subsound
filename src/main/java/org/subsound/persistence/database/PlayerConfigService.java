@@ -17,6 +17,7 @@ import java.util.Optional;
 public class PlayerConfigService {
     private static final Logger logger = LoggerFactory.getLogger(PlayerConfigService.class);
     private static final int CONFIG_KEY_V1 = 1;
+    private static final int CONFIG_KEY_QUEUE_STATE = 2;
 
     private final Database database;
 
@@ -44,6 +45,21 @@ public class PlayerConfigService {
      */
     public void deletePlayerConfig() {
         deleteConfig(CONFIG_KEY_V1);
+    }
+
+    /**
+     * Save play queue state metadata (position, play mode, play context).
+     */
+    public void saveQueueState(PlayQueueStateJson state) {
+        saveConfig(CONFIG_KEY_QUEUE_STATE, Utils.toJson(state));
+    }
+
+    /**
+     * Load play queue state metadata.
+     */
+    public Optional<PlayQueueStateJson> loadQueueState() {
+        return loadConfig(CONFIG_KEY_QUEUE_STATE)
+                .map(json -> Utils.fromJson(json, PlayQueueStateJson.class));
     }
 
     private void saveConfig(int configKey, String configJson) {

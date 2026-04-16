@@ -13,6 +13,7 @@ import org.subsound.app.state.PlayerAction.PlayPositionInQueue;
 import org.subsound.configuration.Config;
 import org.subsound.configuration.Config.ConfigurationDTO.OnboardingState;
 import org.subsound.integration.ServerClient;
+import org.subsound.integration.ServerClient.ObjectIdentifier;
 import org.subsound.integration.ServerClient.PlaylistCreateRequest;
 import org.subsound.integration.ServerClient.PlaylistDeleteRequest;
 import org.subsound.integration.ServerClient.PlaylistRemoveSongRequest;
@@ -34,6 +35,8 @@ import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.PlayerConfig;
 import org.subsound.persistence.database.PlayerConfigService;
 import org.subsound.persistence.database.PlayerStateJson;
+import org.subsound.persistence.database.PlayQueueItemRow;
+import org.subsound.persistence.database.PlayQueueStateJson;
 import org.subsound.persistence.database.SyncService;
 import org.subsound.sound.PlaybinPlayer;
 import org.subsound.sound.PlaybinPlayer.AudioSource;
@@ -50,8 +53,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +73,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.subsound.app.state.AppManager.NowPlaying.State.LOADING;
 import static org.subsound.app.state.AppManager.NowPlaying.State.READY;
@@ -154,7 +160,9 @@ public class AppManager {
                 }
         );
         // initial load of download queue:
-        this.downloadManager.listDownloads().forEach(item -> {
+        var downloadQueueItems = this.downloadManager.listDownloads(true).stream()
+                .collect(Collectors.toMap(DownloadQueueItem::songId, Function.identity()));
+        downloadQueueItems.forEach((_, item) -> {
             this.gSongStore.setDownloadState(item.songId(), item.status().toState());
         });
         this.networkMonitor = new GioNetworkStatusMonitor(this::updateNetworkState);
@@ -188,6 +196,9 @@ public class AppManager {
         // restore saved volume:
         this.player.setVolume(savedPlayerState.volume());
         this.player.setMute(savedPlayerState.muted());
+
+        // Restore play queue from DB
+        this.restorePlayQueue(downloadQueueItems);
 
         // Restore last playing song from DB (without auto-playing)
         var lastPlayback = savedPlayerState.currentPlayback();
@@ -427,6 +438,10 @@ public class AppManager {
         timeIt(
                 duration -> log.info("shutdown: saveCurrentPlayerPreferencesImmediately: {}ms", duration.toMillis()),
                 this::saveCurrentPlayerPreferencesImmediately
+        );
+        timeIt(
+                duration -> log.info("shutdown: savePlayQueueImmediately: {}ms", duration.toMillis()),
+                this::savePlayQueueImmediately
         );
 
         var saveTask = this.pendingPreferenceSave;
@@ -1111,8 +1126,17 @@ public class AppManager {
         var playerPosition = currentSource.flatMap(Source::position).orElse(Duration.ZERO);
         var playerDuration = currentSource.flatMap(Source::duration).orElse(Duration.ZERO);
 
+        String playContextType = null;
+        String playContextId = null;
+        var queueState = this.playQueue.getState();
+        if (queueState.playContext().isPresent()) {
+            var ctx = queueState.playContext().get();
+            playContextId = ctx.getId();
+            playContextType = serializeContextType(ctx);
+        }
+
         PlayerStateJson.PlaybackPosition playbackPosition = currentSongId != null
-                ? new PlayerStateJson.PlaybackPosition(currentSongId, playerPosition.toMillis(), playerDuration.toMillis())
+                ? new PlayerStateJson.PlaybackPosition(currentSongId, playerPosition.toMillis(), playerDuration.toMillis(), playContextType, playContextId)
                 : null;
         var playerConfig = new PlayerConfig(
                 SERVER_ID,
@@ -1125,6 +1149,145 @@ public class AppManager {
         } catch (Exception e) {
             log.error("failed to save player preferences", e);
         }
+    }
+
+    private void savePlayQueueImmediately() {
+        try {
+            var queueState = this.playQueue.getState();
+
+            // Save queue metadata
+            String playContextType = null;
+            String playContextId = null;
+            if (queueState.playContext().isPresent()) {
+                var ctx = queueState.playContext().get();
+                playContextId = ctx.getId();
+                playContextType = serializeContextType(ctx);
+            }
+            var metaJson = new PlayQueueStateJson(
+                    queueState.position().orElse(null),
+                    queueState.playMode().name(),
+                    playContextType,
+                    playContextId
+            );
+            this.playerConfigService.saveQueueState(metaJson);
+
+            // Save queue items
+            var listStore = this.playQueue.getListStore();
+            var items = new ArrayList<PlayQueueItemRow>();
+            for (int i = 0; i < listStore.getNItems(); i++) {
+                var item = listStore.getItem(i);
+                items.add(new PlayQueueItemRow(
+                        SERVER_ID,
+                        i,
+                        item.getId(),
+                        item.getQueueItemId(),
+                        item.queueKind().name(),
+                        item.getOriginalOrder(),
+                        item.getShuffleOrder(),
+                        null
+                ));
+            }
+            this.dbService.savePlayQueueItems(items);
+            log.info("savePlayQueueImmediately: saved {} queue items, position={}, playMode={}",
+                    items.size(), queueState.position().orElse(-1), queueState.playMode());
+        } catch (Exception e) {
+            log.error("Failed to save play queue", e);
+        }
+    }
+
+    private void restorePlayQueue(Map<String, DownloadQueueItem> downloadQueueItems) {
+        var start = System.currentTimeMillis();
+        int count = 0;
+        try {
+            var queueMeta = this.playerConfigService.loadQueueState()
+                    .orElse(PlayQueueStateJson.empty());
+            var savedItems = this.dbService.loadPlayQueueItems();
+
+            if (savedItems.isEmpty()) {
+                log.info("restorePlayQueue: no saved queue items");
+                return;
+            }
+
+            var gqueueItems = new ArrayList<GQueueItem>();
+            int skippedBeforePosition = 0;
+            int savedPosition = queueMeta.position() != null ? queueMeta.position() : -1;
+            var client = this.client.get();
+
+            for (int i = 0; i < savedItems.size(); i++) {
+                var row = savedItems.get(i);
+                if (row.song() == null) {
+                    log.info("restorePlayQueue: dropping song not found in database: {}", row.songId());
+                    if (i < savedPosition) {
+                        skippedBeforePosition++;
+                    }
+                    continue;
+                }
+                var downloadStatus = Optional.ofNullable(downloadQueueItems.get(row.songId()));
+                var songInfo = client.dbSongToSongInfo(row.song(), downloadStatus);
+                var gSong = this.gSongStore.newInstance(songInfo);
+                var queueKind = GQueueItem.QueueKind.valueOf(row.queueKind());
+                var gItem = GQueueItem.newInstance(
+                        row.queueItemId(),
+                        gSong,
+                        queueKind,
+                        row.originalOrder()
+                );
+                gItem.setShuffleOrder(row.shuffleOrder());
+                gqueueItems.add(gItem);
+            }
+
+            if (gqueueItems.isEmpty()) {
+                log.info("restorePlayQueue: all songs were missing, nothing to restore");
+                return;
+            }
+
+            int totalSkipped = skippedBeforePosition;
+            Optional<Integer> position = Optional.ofNullable(queueMeta.position())
+                    .map(p -> p - totalSkipped)
+                    .filter(p -> p >= 0 && p < gqueueItems.size());
+
+            PlayerAction.PlayMode playMode;
+            try {
+                playMode = PlayerAction.PlayMode.valueOf(queueMeta.playMode());
+            } catch (Exception e) {
+                playMode = PlayerAction.PlayMode.NORMAL;
+            }
+
+            Optional<ObjectIdentifier> playContext = deserializeContext(
+                    queueMeta.playContextType(), queueMeta.playContextId()
+            );
+            count = gqueueItems.size();
+
+            this.playQueue.restoreQueue(gqueueItems, position, playMode, playContext);
+            log.info("restorePlayQueue: restored {} items, position={}, playMode={}",
+                    gqueueItems.size(), position.orElse(-1), playMode);
+        } catch (Exception e) {
+            log.warn("Failed to restore play queue", e);
+        } finally {
+            log.info("restorePlayQueue: {}items took {}ms", count, System.currentTimeMillis() - start);
+        }
+    }
+
+    private static String serializeContextType(ObjectIdentifier ctx) {
+        return switch (ctx) {
+            case ObjectIdentifier.ArtistIdentifier _ -> "artist";
+            case ObjectIdentifier.AlbumIdentifier _ -> "album";
+            case ObjectIdentifier.PlaylistIdentifier _ -> "playlist";
+            case ObjectIdentifier.SongIdentifier _ -> "song";
+        };
+    }
+
+    private static Optional<ObjectIdentifier> deserializeContext(String type, String id) {
+        if (type == null || id == null) {
+            return Optional.empty();
+        }
+        return Optional.of(switch (type) {
+            case "artist" -> new ObjectIdentifier.ArtistIdentifier(id);
+            case "album" -> new ObjectIdentifier.AlbumIdentifier(id);
+            case "playlist" -> new ObjectIdentifier.PlaylistIdentifier(id);
+            case "song" -> new ObjectIdentifier.SongIdentifier(id);
+            default -> throw new IllegalArgumentException("Unknown context type: " + type);
+        });
     }
 
     private void unstarSong(PlayerAction.Unstar a) {

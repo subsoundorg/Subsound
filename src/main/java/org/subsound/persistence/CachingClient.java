@@ -7,7 +7,7 @@ import org.subsound.persistence.database.Artist;
 import org.subsound.persistence.database.DatabaseServerService;
 import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.PlaylistRow;
-import org.subsound.persistence.database.Song;
+import org.subsound.persistence.database.DBSong;
 import org.subsound.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,7 +222,7 @@ public class CachingClient implements ServerClient {
                 var playlistSongs = playlist.songs();
                 for (int i = 0; i < playlistSongs.size(); i++) {
                     var songInfo = playlistSongs.get(i);
-                    dbService.insert(Song.from(songInfo, serverUUID));
+                    dbService.insert(DBSong.from(songInfo, serverUUID));
                     dbService.insertPlaylistSong(playlist.id(), songInfo.id(), i);
                 }
             } catch (Exception e) {
@@ -463,12 +463,20 @@ public class CachingClient implements ServerClient {
         );
     }
 
-    private SongInfo toSongInfo(Song song) {
+    public SongInfo dbSongToSongInfo(DBSong song, Optional<DownloadQueueItem> downloadItem) {
+        return toSongInfo(song, downloadItem);
+    }
+
+    private SongInfo toSongInfo(DBSong song) {
+        var downloadItem = dbService.getDownloadQueueItem(song.id());
+        return toSongInfo(song, downloadItem);
+    }
+
+    private SongInfo toSongInfo(DBSong song, Optional<DownloadQueueItem> downloadItem) {
         // For offline mode, transcodeInfo and downloadUri are unavailable
         // streamUri is empty and will be resolved at play time if needed
         // Check download_queue for the actual stream format used when caching this song,
         // so the cache key matches the file on disk even if transcode settings changed since.
-        var downloadItem = dbService.getDownloadQueueItem(song.id());
         var defaultSuffix = song.suffix().isEmpty() ? "mp3" : song.suffix();
         var streamFormat = downloadItem.map(DownloadQueueItem::streamFormat).orElse(defaultSuffix);
         var estimatedBitRate = downloadItem.map(DownloadQueueItem::estimatedBitRate).orElse(song.bitRate().orElse(0));

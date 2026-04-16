@@ -6,7 +6,7 @@ import org.junit.Test;
 import static org.subsound.persistence.SongCache.toCacheKey;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class SongCacheTest {
+public class DBSongCacheTest {
 
     @Test
     public void getSong() {

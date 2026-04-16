@@ -376,6 +376,10 @@ public class Utils {
         return null;
     }
 
+    public static boolean isNotBlank(String s) {
+        return s != null && !s.isBlank();
+    }
+
     public static @NonNull String firstNotBlank(String ...ss) {
         for (String s : ss) {
             if (s != null && !s.isBlank()) {

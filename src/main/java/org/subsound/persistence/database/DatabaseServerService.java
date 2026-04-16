@@ -271,7 +271,7 @@ public class DatabaseServerService {
         );
     }
 
-    public void insert(Song song) {
+    public void insert(DBSong song) {
         String sql = """
                 INSERT OR REPLACE INTO songs (id, server_id, album_id, album_name, name, year, artist_id, artist_name, duration_ms, starred_at_ms, cover_art_id, created_at_ms, track_number, disc_number, bit_rate, size, genre, suffix)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -327,7 +327,7 @@ public class DatabaseServerService {
         }
     }
 
-    public void syncAlbumBatch(Album album, List<Song> songs) {
+    public void syncAlbumBatch(Album album, List<DBSong> songs) {
         String albumSql = """
                 INSERT OR REPLACE INTO albums (id, server_id, artist_id, name, song_count, year, artist_name, duration_ms, starred_at_ms, cover_art_id, added_at_ms, genre)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -371,7 +371,7 @@ public class DatabaseServerService {
                     pstmt.executeUpdate();
                 }
                 try (PreparedStatement pstmt = conn.prepareStatement(songSql)) {
-                    for (Song song : songs) {
+                    for (DBSong song : songs) {
                         pstmt.setString(1, song.id());
                         pstmt.setString(2, song.serverId().toString());
                         pstmt.setString(3, song.albumId());
@@ -429,8 +429,8 @@ public class DatabaseServerService {
         }
     }
 
-    public List<Song> listSongsByAlbumId(String albumId) {
-        List<Song> songs = new ArrayList<>();
+    public List<DBSong> listSongsByAlbumId(String albumId) {
+        List<DBSong> songs = new ArrayList<>();
         String sql = "SELECT * FROM songs WHERE server_id = ? AND album_id = ? ORDER BY disc_number, track_number";
         try (Connection conn = database.openConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -448,8 +448,8 @@ public class DatabaseServerService {
         return songs;
     }
 
-    public List<Song> listSongsByStarredAt() {
-        List<Song> songs = new ArrayList<>();
+    public List<DBSong> listSongsByStarredAt() {
+        List<DBSong> songs = new ArrayList<>();
         String sql = "SELECT * FROM songs WHERE server_id = ? AND starred_at_ms IS NOT NULL ORDER BY starred_at_ms DESC";
         try (Connection conn = database.openConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -495,7 +495,7 @@ public class DatabaseServerService {
         }
     }
 
-    public Optional<Song> getSongById(String songId) {
+    public Optional<DBSong> getSongById(String songId) {
         String sql = "SELECT * FROM songs WHERE server_id = ? AND id = ?";
         try (Connection conn = database.openConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -513,7 +513,7 @@ public class DatabaseServerService {
         return Optional.empty();
     }
 
-    private Song mapResultSetToSong(ResultSet rs) throws SQLException {
+    private DBSong mapResultSetToSong(ResultSet rs) throws SQLException {
         int year = rs.getInt("year");
         Optional<Integer> yearOptional = rs.wasNull() ? Optional.empty() : Optional.of(year);
 
@@ -532,7 +532,7 @@ public class DatabaseServerService {
         int bitRate = rs.getInt("bit_rate");
         Optional<Integer> bitRateOpt = rs.wasNull() ? Optional.empty() : Optional.of(bitRate);
 
-        return new Song(
+        return new DBSong(
                 rs.getString("id"),
                 UUID.fromString(rs.getString("server_id")),
                 rs.getString("album_id"),
@@ -1122,5 +1122,78 @@ public class DatabaseServerService {
                 rs.getLong("created_at_ms"),
                 ScrobbleStatus.valueOf(rs.getString("status"))
         );
+    }
+
+    // --- Play Queue persistence ---
+
+    public void savePlayQueueItems(List<PlayQueueItemRow> items) {
+        String deleteSql = "DELETE FROM play_queue_items WHERE server_id = ?";
+        String insertSql = """
+            INSERT INTO play_queue_items (server_id, sort_order, song_id, queue_item_id, queue_kind, original_order, shuffle_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """;
+        try (Connection conn = database.openConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                deleteStmt.setString(1, this.serverId.toString());
+                deleteStmt.executeUpdate();
+            }
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                for (var item : items) {
+                    insertStmt.setString(1, this.serverId.toString());
+                    insertStmt.setInt(2, item.sortOrder());
+                    insertStmt.setString(3, item.songId());
+                    insertStmt.setString(4, item.queueItemId());
+                    insertStmt.setString(5, item.queueKind());
+                    insertStmt.setInt(6, item.originalOrder());
+                    insertStmt.setInt(7, item.shuffleOrder());
+                    insertStmt.addBatch();
+                }
+                insertStmt.executeBatch();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            logger.error("Failed to save play queue items", e);
+            throw new RuntimeException("Failed to save play queue items", e);
+        }
+    }
+
+    public List<PlayQueueItemRow> loadPlayQueueItems() {
+        String sql = """
+            SELECT q.server_id AS q_server_id, q.sort_order, q.song_id, q.queue_item_id,
+                   q.queue_kind, q.original_order, q.shuffle_order, s.*
+            FROM play_queue_items q
+            LEFT JOIN songs s ON q.song_id = s.id AND q.server_id = s.server_id
+            WHERE q.server_id = ?
+            ORDER BY q.sort_order
+        """;
+        try (Connection conn = database.openConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, this.serverId.toString());
+            try (ResultSet rs = pstmt.executeQuery()) {
+                var items = new ArrayList<PlayQueueItemRow>();
+                while (rs.next()) {
+                    DBSong song = null;
+                    // s.id will be null when the LEFT JOIN has no match
+                    if (rs.getString("id") != null) {
+                        song = mapResultSetToSong(rs);
+                    }
+                    items.add(new PlayQueueItemRow(
+                            rs.getString("q_server_id"),
+                            rs.getInt("sort_order"),
+                            rs.getString("song_id"),
+                            rs.getString("queue_item_id"),
+                            rs.getString("queue_kind"),
+                            rs.getInt("original_order"),
+                            rs.getInt("shuffle_order"),
+                            song
+                    ));
+                }
+                return items;
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to load play queue items", e);
+            throw new RuntimeException("Failed to load play queue items", e);
+        }
     }
 }

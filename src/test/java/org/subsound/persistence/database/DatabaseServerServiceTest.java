@@ -182,7 +182,7 @@ public class DatabaseServerServiceTest {
         DatabaseServerService service = new DatabaseServerService(serverId, db);
 
         Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        Song song1 = new Song(
+        DBSong song1 = new DBSong(
                 "song-1",
                 serverId,
                 "album-1",
@@ -203,7 +203,7 @@ public class DatabaseServerServiceTest {
                 "mp3"
         );
 
-        Song song2 = new Song(
+        DBSong song2 = new DBSong(
                 "song-2",
                 serverId,
                 "album-1",
@@ -224,7 +224,7 @@ public class DatabaseServerServiceTest {
                 ""
         );
 
-        Song song3 = new Song(
+        DBSong song3 = new DBSong(
                 "song-3",
                 serverId,
                 "album-2",
@@ -251,17 +251,17 @@ public class DatabaseServerServiceTest {
         service.insert(song3);
 
         // Test getSongById
-        Optional<Song> found = service.getSongById("song-1");
+        Optional<DBSong> found = service.getSongById("song-1");
         Assertions.assertThat(found).isPresent();
         Assertions.assertThat(found.get()).usingRecursiveComparison().isEqualTo(song1);
 
         // Test listSongsByAlbumId
-        List<Song> album1Songs = service.listSongsByAlbumId("album-1");
+        List<DBSong> album1Songs = service.listSongsByAlbumId("album-1");
         Assertions.assertThat(album1Songs).hasSize(2);
         Assertions.assertThat(album1Songs).usingRecursiveFieldByFieldElementComparator().containsExactlyInAnyOrder(song1, song2);
 
         // Test listSongsByStarredAt (should be descending)
-        List<Song> starredSongs = service.listSongsByStarredAt();
+        List<DBSong> starredSongs = service.listSongsByStarredAt();
         Assertions.assertThat(starredSongs).hasSize(2);
         Assertions.assertThat(starredSongs).usingRecursiveFieldByFieldElementComparator().containsExactly(song1, song3);
     }

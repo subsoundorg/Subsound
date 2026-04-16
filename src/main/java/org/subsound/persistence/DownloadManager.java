@@ -30,7 +30,7 @@ public class DownloadManager {
     private final Consumer<DownloadManagerEvent> onEvent;
     private final Cache<String, Optional<DownloadQueueItem>> songStatusCache = Caffeine.newBuilder()
             .expireAfterAccess(Duration.ofMinutes(10))
-            .maximumSize(200)
+            .maximumSize(1000)
             .build();
     private final Set<String> queuedIds = ConcurrentHashMap.newKeySet();
     private volatile boolean running = true;
@@ -56,8 +56,12 @@ public class DownloadManager {
     public List<DownloadQueueItem> listDownloadQueue() {
         return dbService.listDownloadQueue();
     }
-    public List<DownloadQueueItem> listDownloads() {
-        return dbService.listDownloadQueue(List.of(DownloadStatus.values()));
+    public List<DownloadQueueItem> listDownloads(boolean cacheAll) {
+        var list = dbService.listDownloadQueue(List.of(DownloadStatus.values()));
+        if (cacheAll) {
+            list.forEach(item -> songStatusCache.put(item.songId(), Optional.of(item)));
+        }
+        return list;
     }
 
     public record DownloadManagerEvent(

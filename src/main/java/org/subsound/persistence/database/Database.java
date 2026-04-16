@@ -121,6 +121,7 @@ public class Database {
         migrations.add(new MigrationV11());
         migrations.add(new MigrationV12());
         migrations.add(new MigrationV13());
+        migrations.add(new MigrationV14());
         return migrations;
     }
 
@@ -429,6 +430,29 @@ public class Database {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("ALTER TABLE servers ADD COLUMN audio_format TEXT DEFAULT NULL");
                 stmt.execute("ALTER TABLE servers ADD COLUMN audio_bitrate INTEGER DEFAULT NULL");
+            }
+        }
+    }
+
+    static class MigrationV14 implements Migration {
+        @Override
+        public int version() { return 14; }
+
+        @Override
+        public void apply(Connection conn) throws SQLException {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS play_queue_items (
+                        server_id TEXT NOT NULL,
+                        sort_order INTEGER NOT NULL,
+                        song_id TEXT NOT NULL,
+                        queue_item_id TEXT NOT NULL,
+                        queue_kind TEXT NOT NULL DEFAULT 'AUTOMATIC',
+                        original_order INTEGER NOT NULL DEFAULT 0,
+                        shuffle_order INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY (server_id, sort_order)
+                    )
+                """);
             }
         }
     }

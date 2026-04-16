@@ -40,7 +40,7 @@ public class DatabaseTest {
             // Check version
             try (ResultSet rs = stmt.executeQuery("SELECT MAX(version) FROM schema_version")) {
                 Assertions.assertThat(rs.next()).isTrue();
-                Assertions.assertThat(rs.getInt(1)).isEqualTo(13);
+                Assertions.assertThat(rs.getInt(1)).isEqualTo(14);
             }
 
             // Check if artists table exists

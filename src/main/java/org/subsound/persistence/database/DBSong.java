@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-public record Song(
+public record DBSong(
         String id,
         UUID serverId,
         String albumId,
@@ -28,8 +28,8 @@ public record Song(
         String genre,
         String suffix
 ) {
-    public static Song from(SongInfo songInfo, UUID serverId) {
-        return new Song(
+    public static DBSong from(SongInfo songInfo, UUID serverId) {
+        return new DBSong(
                 songInfo.id(),
                 serverId,
                 songInfo.albumId(),

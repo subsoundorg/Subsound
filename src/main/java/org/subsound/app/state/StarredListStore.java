@@ -3,7 +3,7 @@ package org.subsound.app.state;
 import org.subsound.integration.ServerClient;
 import org.subsound.integration.ServerClient.SongInfo;
 import org.subsound.persistence.database.DatabaseServerService;
-import org.subsound.persistence.database.Song;
+import org.subsound.persistence.database.DBSong;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GSongStore;
 import org.subsound.utils.Utils;
@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -236,7 +235,7 @@ public class StarredListStore {
         }
         var newIdSet = newSongs.stream().map(SongInfo::id).collect(Collectors.toSet());
         for (var song : newSongs) {
-            dbService.insert(Song.from(song, serverUUID));
+            dbService.insert(DBSong.from(song, serverUUID));
         }
         dbService.clearStarredExcept(newIdSet);
         log.info("persisted {} starred songs to database", newSongs.size());
