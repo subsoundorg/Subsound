@@ -46,7 +46,12 @@ public class ServerBadge extends Box implements AppManager.StateListener {
     private final ActionRow syncButton;
     private final ActionRow configureServerButton;
     private final ActionRow logoutButton;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        var t = new Thread(r);
+        t.setDaemon(true);
+        t.setName("server-status");
+        return t;
+    });
     private ScheduledFuture<?> pingTask;
     private volatile NetworkStatus currentNetworkStatus = NetworkStatus.ONLINE;
     private final AtomicBoolean updatingSwitch = new AtomicBoolean(false);
@@ -241,7 +246,7 @@ public class ServerBadge extends Box implements AppManager.StateListener {
             if (pingTask != null) {
                 pingTask.cancel(false);
             }
-            scheduler.shutdown();
+            scheduler.shutdownNow();
         });
     }
 

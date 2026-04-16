@@ -26,7 +26,12 @@ public class DownloadManager {
     private static final Logger log = LoggerFactory.getLogger(DownloadManager.class);
     private final DatabaseServerService dbService;
     private final SongCache songCache;
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
+        var t = new Thread(r);
+        t.setDaemon(true);
+        t.setName("download-manager");
+        return t;
+    });
     private final Consumer<DownloadManagerEvent> onEvent;
     private final Cache<String, Optional<DownloadQueueItem>> songStatusCache = Caffeine.newBuilder()
             .expireAfterAccess(Duration.ofMinutes(10))
@@ -219,13 +224,6 @@ public class DownloadManager {
 
     public void stop() {
         running = false;
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-        }
+        executor.shutdownNow();
     }
 }

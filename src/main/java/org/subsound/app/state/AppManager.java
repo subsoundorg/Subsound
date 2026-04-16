@@ -28,15 +28,15 @@ import org.subsound.persistence.SongCache.CacheSong;
 import org.subsound.persistence.SongCache.LoadSongResult;
 import org.subsound.persistence.ThumbnailCache;
 import org.subsound.persistence.database.Database;
-import org.subsound.persistence.database.DatabaseService;
 import org.subsound.persistence.database.DatabaseServerService;
-import org.subsound.persistence.database.Server;
+import org.subsound.persistence.database.DatabaseService;
 import org.subsound.persistence.database.DownloadQueueItem;
+import org.subsound.persistence.database.PlayQueueItemRow;
+import org.subsound.persistence.database.PlayQueueStateJson;
 import org.subsound.persistence.database.PlayerConfig;
 import org.subsound.persistence.database.PlayerConfigService;
 import org.subsound.persistence.database.PlayerStateJson;
-import org.subsound.persistence.database.PlayQueueItemRow;
-import org.subsound.persistence.database.PlayQueueStateJson;
+import org.subsound.persistence.database.Server;
 import org.subsound.persistence.database.SyncService;
 import org.subsound.sound.PlaybinPlayer;
 import org.subsound.sound.PlaybinPlayer.AudioSource;
@@ -63,8 +63,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -100,7 +98,6 @@ public class AppManager {
     private final StarredListStore starredList;
     private final PlaylistsStore playlistsStore;
     private final SearchResultStore searchResultStore;
-    private final ScheduledExecutorService preferenceSaveScheduler = Executors.newSingleThreadScheduledExecutor();
     private final Database database;
     private final DatabaseService databaseService;
     private final DatabaseServerService dbService;
@@ -110,7 +107,7 @@ public class AppManager {
     private final NetworkMonitoring networkMonitor;
     private final Runnable onQuit;
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
-    private volatile ScheduledFuture<?> pendingPreferenceSave;
+    private volatile CompletableFuture<?> pendingPreferenceSave;
     private volatile UUID scrobbledForRequestId = null;
     private final AtomicInteger loadGeneration = new java.util.concurrent.atomic.AtomicInteger(0);
 
@@ -446,12 +443,8 @@ public class AppManager {
 
         var saveTask = this.pendingPreferenceSave;
         if (saveTask != null) {
-            saveTask.cancel(false);
+            saveTask.cancel(true);
         }
-        timeIt(
-                duration -> log.info("shutdown: preferenceSaveScheduler: {}ms", duration.toMillis()),
-                this.preferenceSaveScheduler::shutdown
-        );
         timeIt(
                 duration -> log.info("shutdown: downloadManager: {}ms", duration.toMillis()),
                 this.downloadManager::stop
@@ -1085,21 +1078,20 @@ public class AppManager {
     }
 
     /**
-     * Saves player preferences with debouncing (500ms delay).
+     * Saves player preferences with debouncing (2s delay).
      * If called multiple times within the delay, only the last call will actually save.
      */
     public void saveCurrentPlayerPreferences() {
         // Cancel any pending save
         var ref = pendingPreferenceSave;
         if (ref != null) {
-            ref.cancel(false);
+            ref.cancel(true);
             pendingPreferenceSave = null;
         }
-        // Schedule a new save after 500ms
-        pendingPreferenceSave = preferenceSaveScheduler.schedule(
+        // Schedule a new save after 2s on a virtual thread
+        pendingPreferenceSave = CompletableFuture.runAsync(
                 this::saveCurrentPlayerPreferencesImmediately,
-                2000,
-                TimeUnit.MILLISECONDS
+                CompletableFuture.delayedExecutor(2, TimeUnit.SECONDS, ASYNC_EXECUTOR)
         );
     }
 
@@ -1111,7 +1103,7 @@ public class AppManager {
         // Cancel any pending debounced save
         var ref = pendingPreferenceSave;
         if (ref != null) {
-            ref.cancel(false);
+            ref.cancel(true);
             pendingPreferenceSave = null;
         }
         var state = this.player.getState();
@@ -1264,7 +1256,7 @@ public class AppManager {
         } catch (Exception e) {
             log.warn("Failed to restore play queue", e);
         } finally {
-            log.info("restorePlayQueue: {}items took {}ms", count, System.currentTimeMillis() - start);
+            log.info("restorePlayQueue: {} items took {}ms", count, System.currentTimeMillis() - start);
         }
     }
 
