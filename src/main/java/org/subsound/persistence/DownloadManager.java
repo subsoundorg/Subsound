@@ -9,7 +9,6 @@ import org.subsound.integration.ServerClient.TranscodeInfo;
 import org.subsound.persistence.database.DatabaseServerService;
 import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
-import org.subsound.ui.models.GDownloadState;
 import org.subsound.utils.Utils;
 
 import java.time.Duration;
@@ -79,16 +78,6 @@ public class DownloadManager {
             DOWNLOAD_COMPLETED,
             DOWNLOAD_FAILED,
             SONG_CACHED;
-
-            public GDownloadState toState() {
-                return switch (this) {
-                    case DOWNLOAD_PENDING -> GDownloadState.PENDING;
-                    case DOWNLOAD_STARTED -> GDownloadState.DOWNLOADING;
-                    case DOWNLOAD_COMPLETED -> GDownloadState.DOWNLOADED;
-                    case DOWNLOAD_FAILED -> GDownloadState.NONE;
-                    case SONG_CACHED -> GDownloadState.CACHED;
-                };
-            }
         }
     }
 

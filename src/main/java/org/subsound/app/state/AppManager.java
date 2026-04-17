@@ -42,6 +42,7 @@ import org.subsound.sound.PlaybinPlayer;
 import org.subsound.sound.PlaybinPlayer.AudioSource;
 import org.subsound.sound.PlaybinPlayer.Source;
 import org.subsound.ui.components.AppNavigation;
+import org.subsound.ui.models.GDownloadState;
 import org.subsound.ui.models.GQueueItem;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GSongStore;
@@ -152,7 +153,7 @@ public class AppManager {
                 downloadEvent -> {
                     this.gSongStore.setDownloadState(
                             downloadEvent.item().songId(),
-                            downloadEvent.type().toState()
+                            GDownloadState.from(downloadEvent.item().status())
                     );
                 }
         );
@@ -160,7 +161,7 @@ public class AppManager {
         var downloadQueueItems = this.downloadManager.listDownloads(true).stream()
                 .collect(Collectors.toMap(DownloadQueueItem::songId, Function.identity()));
         downloadQueueItems.forEach((_, item) -> {
-            this.gSongStore.setDownloadState(item.songId(), item.status().toState());
+            this.gSongStore.setDownloadState(item.songId(), GDownloadState.from(item.status()));
         });
         this.networkMonitor = new GioNetworkStatusMonitor(this::updateNetworkState);
         this.playQueue = new PlayQueue(
