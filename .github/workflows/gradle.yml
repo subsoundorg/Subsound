@@ -40,9 +40,7 @@ jobs:
       with:
         java-version: '25'
         distribution: 'temurin'
-    - uses: gradle/actions/setup-gradle@v5.0.2
-      with:
-        gradle-version: '9.3.0'
+    - uses: gradle/actions/setup-gradle@v6
     - name: Get dependencies with Gradle & run flatpak-gradle-generator plugin by jwharm
       run: gradle flatpakGradleGenerator
     - uses: stefanzweifel/git-auto-commit-action@v5
