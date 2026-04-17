@@ -68,7 +68,8 @@ public class DownloadManagerTest {
 
         var eventList = new ArrayList<DownloadManagerEvent>();
         SongCache songCache = new SongCache(dataDir.toPath(), transcodeInfo -> this.mockMusicServer.openStream(transcodeInfo));
-        DownloadManager downloadManager = new DownloadManager(dbService, songCache, eventList::add);
+        DownloadManager downloadManager = new DownloadManager(dbService, songCache);
+        downloadManager.subscribe(eventList::add);
         // Enqueue
         downloadManager.enqueue(songInfo);
         

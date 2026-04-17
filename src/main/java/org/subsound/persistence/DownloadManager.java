@@ -22,7 +22,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-public class DownloadManager {
+public class DownloadManager implements DownloadNotifier {
     private static final Logger log = LoggerFactory.getLogger(DownloadManager.class);
     private final DatabaseServerService dbService;
     private final SongCache songCache;
@@ -46,13 +46,14 @@ public class DownloadManager {
     ) {
         this.dbService = dbService;
         this.songCache = songCache;
-        // Initialize in-memory set from DB (all non-CACHED statuses)
-        dbService.listDownloadQueue(List.of(
-                DownloadStatus.PENDING,
-                DownloadStatus.DOWNLOADING,
-                DownloadStatus.FAILED,
-                DownloadStatus.COMPLETED
-        )).forEach(item -> queuedIds.add(item.songId()));
+        // Warm both caches from DB in a single query: queuedIds tracks non-CACHED,
+        // songStatusCache holds the full item so lookups don't round-trip to DB.
+        dbService.listDownloadQueue(List.of(DownloadStatus.values())).forEach(item -> {
+            if (item.status() != DownloadStatus.CACHED) {
+                queuedIds.add(item.songId());
+            }
+            songStatusCache.put(item.songId(), Optional.of(item));
+        });
         startQueueProcessor();
     }
 

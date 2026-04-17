@@ -2,6 +2,9 @@ package org.subsound.app.state;
 
 import org.subsound.integration.ServerClient.SongInfo;
 import org.subsound.integration.SongInfoFactory;
+import org.subsound.persistence.DownloadManager;
+import org.subsound.persistence.DownloadNotifier;
+import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.sound.PlaybinPlayer.PlayerState;
 import org.subsound.sound.PlaybinPlayer.PlayerStates;
 import org.subsound.sound.PlaybinPlayer.Source;
@@ -40,7 +43,17 @@ public class PlayQueueTest {
 
         playQueue = new PlayQueue(
                 player,
-                new GSongStore(key -> this.songInfoFactory.getSongById(key)),
+                new GSongStore(
+                        key -> this.songInfoFactory.getSongById(key),
+                        new DownloadNotifier() {
+                            @Override
+                            public void subscribe(Consumer<DownloadManager.DownloadManagerEvent> listener) {}
+                            @Override
+                            public Optional<DownloadQueueItem> getSongStatus(String songId) {
+                                return Optional.empty();
+                            }
+                        }
+                ),
                 stateChangedRecorder,
                 playRecorder
         );
