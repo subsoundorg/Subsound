@@ -144,25 +144,11 @@ public class AppManager {
                 config.dataDir,
                 transcodeInfo -> this.useClient(c -> c.openStream(transcodeInfo))
         );
+        this.downloadManager = new DownloadManager(dbService, songCache);
         this.gSongStore = new GSongStore(
-                songId -> this.useClient(c -> c.getSong(songId))
+                songId -> this.useClient(c -> c.getSong(songId)),
+                this.downloadManager
         );
-        this.downloadManager = new DownloadManager(
-                dbService,
-                songCache,
-                downloadEvent -> {
-                    this.gSongStore.setDownloadState(
-                            downloadEvent.item().songId(),
-                            GDownloadState.from(downloadEvent.item().status())
-                    );
-                }
-        );
-        // initial load of download queue:
-        var downloadQueueItems = this.downloadManager.listDownloads(true).stream()
-                .collect(Collectors.toMap(DownloadQueueItem::songId, Function.identity()));
-        downloadQueueItems.forEach((_, item) -> {
-            this.gSongStore.setDownloadState(item.songId(), GDownloadState.from(item.status()));
-        });
         this.networkMonitor = new GioNetworkStatusMonitor(this::updateNetworkState);
         this.playQueue = new PlayQueue(
                 player,
@@ -196,7 +182,7 @@ public class AppManager {
         this.player.setMute(savedPlayerState.muted());
 
         // Restore play queue from DB
-        this.restorePlayQueue(downloadQueueItems);
+        this.restorePlayQueue();
 
         // Restore last playing song from DB (without auto-playing)
         var lastPlayback = savedPlayerState.currentPlayback();
@@ -1057,7 +1043,13 @@ public class AppManager {
         // Do not force-sync the network status at creation: CachingClient defaults to ONLINE
         // so the server is tried first. The network monitor will update it once it has
         // queried the real connectivity (which in flatpak can take ~500 ms via the portal).
-        var client = new CachingClient(raw, this.dbService, SERVER_ID, this.config.dataDir);
+        var client = new CachingClient(
+                raw,
+                this.dbService,
+                SERVER_ID,
+                this.config.dataDir,
+                this.downloadManager::getSongStatus
+        );
         // Async DNS pre-check: if the server hostname can't be resolved within 5 seconds,
         // flip to offline immediately so feign requests don't block on the OS DNS timeout (~30s on macOS).
         if (this.config.serverConfig != null) {
@@ -1188,7 +1180,7 @@ public class AppManager {
         }
     }
 
-    private void restorePlayQueue(Map<String, DownloadQueueItem> downloadQueueItems) {
+    private void restorePlayQueue() {
         var start = System.currentTimeMillis();
         int count = 0;
         try {
@@ -1215,8 +1207,7 @@ public class AppManager {
                     }
                     continue;
                 }
-                var downloadStatus = Optional.ofNullable(downloadQueueItems.get(row.songId()));
-                var songInfo = client.dbSongToSongInfo(row.song(), downloadStatus);
+                var songInfo = client.dbSongToSongInfo(row.song());
                 var gSong = this.gSongStore.newInstance(songInfo);
                 var queueKind = GQueueItem.QueueKind.valueOf(row.queueKind());
                 var gItem = GQueueItem.newInstance(

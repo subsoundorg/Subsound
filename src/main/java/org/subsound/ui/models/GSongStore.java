@@ -2,6 +2,7 @@ package org.subsound.ui.models;
 
 import org.subsound.integration.ServerClient.ObjectIdentifier.SongIdentifier;
 import org.subsound.integration.ServerClient.SongInfo;
+import org.subsound.persistence.DownloadManager;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,10 +14,16 @@ public class GSongStore {
     private final Function<String, SongInfo> songLoader;
 
     public GSongStore(
-            Function<String, SongInfo> songLoader
-    )
-    {
+            Function<String, SongInfo> songLoader,
+            DownloadManager downloadManager
+    ) {
         this.songLoader = songLoader;
+        downloadManager.subscribe(event ->
+                setDownloadState(event.item().songId(), GDownloadState.from(event.item().status()))
+        );
+        downloadManager.listDownloads(true).forEach(item ->
+                setDownloadState(item.songId(), GDownloadState.from(item.status()))
+        );
     }
 
     public GSongInfo getSongById(SongIdentifier id) {

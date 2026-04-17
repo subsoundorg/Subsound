@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static org.subsound.persistence.ThumbnailCache.toCachePath;
 
@@ -30,17 +31,25 @@ public class CachingClient implements ServerClient {
     private final DatabaseServerService dbService;
     private final String serverId;
     private final Path cacheRoot;
+    private final Function<String, Optional<DownloadQueueItem>> downloadStatusLookup;
     // Default to ONLINE - try the server first, fall back to DB on failure.
     // The network monitor will update this when the real connectivity is known.
     // Defaulting to OFFLINE here causes first-run/onboarding issues in flatpak where
     // GNetworkMonitorPortal returns LOCAL (mapped to OFFLINE) for ~500ms on startup.
     private volatile NetworkStatus networkStatus = NetworkStatus.ONLINE;
 
-    public CachingClient(ServerClient delegate, DatabaseServerService dbService, String serverId, Path cacheRoot) {
+    public CachingClient(
+            ServerClient delegate,
+            DatabaseServerService dbService,
+            String serverId,
+            Path cacheRoot,
+            Function<String, Optional<DownloadQueueItem>> downloadStatusLookup
+    ) {
         this.delegate = delegate;
         this.dbService = dbService;
         this.serverId = serverId;
         this.cacheRoot = cacheRoot;
+        this.downloadStatusLookup = downloadStatusLookup;
     }
 
     public void setNetworkStatus(NetworkStatus status) {
@@ -463,12 +472,12 @@ public class CachingClient implements ServerClient {
         );
     }
 
-    public SongInfo dbSongToSongInfo(DBSong song, Optional<DownloadQueueItem> downloadItem) {
-        return toSongInfo(song, downloadItem);
+    public SongInfo dbSongToSongInfo(DBSong song) {
+        return toSongInfo(song);
     }
 
     private SongInfo toSongInfo(DBSong song) {
-        var downloadItem = dbService.getDownloadQueueItem(song.id());
+        var downloadItem = downloadStatusLookup.apply(song.id());
         return toSongInfo(song, downloadItem);
     }
 

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +32,7 @@ public class DownloadManager {
         t.setName("download-manager");
         return t;
     });
-    private final Consumer<DownloadManagerEvent> onEvent;
+    private final List<Consumer<DownloadManagerEvent>> listeners = new CopyOnWriteArrayList<>();
     private final Cache<String, Optional<DownloadQueueItem>> songStatusCache = Caffeine.newBuilder()
             .expireAfterAccess(Duration.ofMinutes(10))
             .maximumSize(1000)
@@ -41,12 +42,10 @@ public class DownloadManager {
 
     public DownloadManager(
             DatabaseServerService dbService,
-            SongCache songCache,
-            Consumer<DownloadManagerEvent> onEvent
+            SongCache songCache
     ) {
         this.dbService = dbService;
         this.songCache = songCache;
-        this.onEvent = onEvent;
         // Initialize in-memory set from DB (all non-CACHED statuses)
         dbService.listDownloadQueue(List.of(
                 DownloadStatus.PENDING,
@@ -55,6 +54,10 @@ public class DownloadManager {
                 DownloadStatus.COMPLETED
         )).forEach(item -> queuedIds.add(item.songId()));
         startQueueProcessor();
+    }
+
+    public void subscribe(Consumer<DownloadManagerEvent> listener) {
+        listeners.add(listener);
     }
 
     public List<DownloadQueueItem> listDownloadQueue() {
@@ -136,7 +139,7 @@ public class DownloadManager {
         this.getSongStatus(songId).ifPresent(this::publishEvent);
     }
     private void publishEvent(DownloadQueueItem item) {
-        var eventOpt = new DownloadManagerEvent(
+        var event = new DownloadManagerEvent(
                 switch (item.status()) {
                     case PENDING -> DownloadManagerEvent.Type.DOWNLOAD_PENDING;
                     case DOWNLOADING -> DownloadManagerEvent.Type.DOWNLOAD_STARTED;
@@ -146,7 +149,13 @@ public class DownloadManager {
                 },
                 item
         );
-        this.onEvent.accept(eventOpt);
+        for (var listener : listeners) {
+            try {
+                listener.accept(event);
+            } catch (Exception e) {
+                log.warn("Download listener threw for song {}", item.songId(), e);
+            }
+        }
     }
 
     private void processQueue() {
