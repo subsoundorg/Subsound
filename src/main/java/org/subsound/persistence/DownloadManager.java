@@ -1,7 +1,5 @@
 package org.subsound.persistence;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.subsound.integration.ServerClient.SongInfo;
@@ -33,11 +31,9 @@ public class DownloadManager implements DownloadNotifier {
         t.setName("download-manager");
         return t;
     });
+
     private final List<Consumer<DownloadManagerEvent>> listeners = new CopyOnWriteArrayList<>();
-    private final Cache<String, Optional<DownloadQueueItem>> songStatusCache = Caffeine.newBuilder()
-            .expireAfterAccess(Duration.ofMinutes(10))
-            .maximumSize(1000)
-            .build();
+    private final ConcurrentHashMap<String, DownloadQueueItem> downloadQueue = new ConcurrentHashMap<>();
     private final Set<String> queuedIds = ConcurrentHashMap.newKeySet();
     private volatile boolean running = true;
 
@@ -53,7 +49,7 @@ public class DownloadManager implements DownloadNotifier {
             if (item.status() != DownloadStatus.CACHED) {
                 queuedIds.add(item.songId());
             }
-            songStatusCache.put(item.songId(), Optional.of(item));
+            downloadQueue.put(item.songId(), item);
         });
         startQueueProcessor();
     }
@@ -65,19 +61,14 @@ public class DownloadManager implements DownloadNotifier {
     public List<DownloadQueueItem> listDownloadQueue() {
         return dbService.listDownloadQueue();
     }
-    public List<DownloadQueueItem> listDownloads(boolean cacheAll) {
-        var list = dbService.listDownloadQueue(List.of(DownloadStatus.values()));
-        if (cacheAll) {
-            list.forEach(item -> songStatusCache.put(item.songId(), Optional.of(item)));
-        }
-        return list;
-    }
 
     public record DownloadManagerEvent(
+            String songId,
             Type type,
-            DownloadQueueItem item
+            Optional<DownloadQueueItem> item
     ) {
         public enum Type {
+            REMOVED_FROM_QUEUE,
             DOWNLOAD_PENDING,
             DOWNLOAD_STARTED,
             DOWNLOAD_COMPLETED,
@@ -88,7 +79,7 @@ public class DownloadManager implements DownloadNotifier {
 
     private void startQueueProcessor() {
         executor.scheduleAtFixedRate(() -> {
-            if (!this.running) {
+            if (!this.isRunning()) {
                 return;
             }
             try {
@@ -100,16 +91,22 @@ public class DownloadManager implements DownloadNotifier {
     }
 
     public Optional<DownloadQueueItem> getSongStatus(String songId) {
-        return songStatusCache.get(songId, this::loadSong);
+        return Optional.ofNullable(downloadQueue.get(songId));
     }
+    // loadSong loads fresh data from db
     private Optional<DownloadQueueItem> loadSong(String songId) {
         return dbService.getDownloadQueueItem(songId);
     }
 
     public void enqueue(SongInfo songInfo) {
+        var current = getSongStatus(songInfo.id());
+        if (current.isPresent() && current.get().status() == DownloadStatus.COMPLETED) {
+            return;
+        }
         queuedIds.add(songInfo.id());
         dbService.addToDownloadQueue(songInfo);
-        songStatusCache.invalidate(songInfo.id());
+        // update cached data:
+        this.loadSong(songInfo.id()).ifPresent(s -> downloadQueue.put(songInfo.id(), s));
         this.publishEvent(songInfo.id());
     }
 
@@ -143,39 +140,49 @@ public class DownloadManager implements DownloadNotifier {
         if (current.isPresent() && current.get().status().isDownloaded()) {
             // File is on disk — keep it available offline but remove from explicit download list
             dbService.updateDownloadProgress(songId, DownloadStatus.CACHED, 1.0, null);
+            // update cached data:
+            this.loadSong(songId).ifPresent(s -> downloadQueue.put(s.songId(), s));
         } else {
             // Not yet downloaded (PENDING / DOWNLOADING / FAILED) — remove entirely
             dbService.removeFromDownloadQueue(songId);
+            downloadQueue.remove(songId);
         }
-        songStatusCache.invalidate(songId);
         this.publishEvent(songId);
     }
 
     public void markAsCached(SongInfo songInfo, String checksum) {
+        var current = getSongStatus(songInfo.id());
+        if (current.isPresent() && current.get().status().isDownloaded()) {
+            return;
+        }
         dbService.addToCacheTracking(songInfo, checksum);
-        songStatusCache.invalidate(songInfo.id());
+        // update cached data:
+        this.loadSong(songInfo.id()).ifPresent(s -> downloadQueue.put(s.songId(), s));
         this.publishEvent(songInfo.id());
     }
 
     private void publishEvent(String songId) {
-        this.getSongStatus(songId).ifPresent(this::publishEvent);
+        this.publishEvent(songId, this.getSongStatus(songId));
     }
-    private void publishEvent(DownloadQueueItem item) {
-        var event = new DownloadManagerEvent(
-                switch (item.status()) {
-                    case PENDING -> DownloadManagerEvent.Type.DOWNLOAD_PENDING;
-                    case DOWNLOADING -> DownloadManagerEvent.Type.DOWNLOAD_STARTED;
-                    case COMPLETED -> DownloadManagerEvent.Type.DOWNLOAD_COMPLETED;
-                    case FAILED -> DownloadManagerEvent.Type.DOWNLOAD_FAILED;
-                    case CACHED -> DownloadManagerEvent.Type.SONG_CACHED;
-                },
-                item
-        );
+
+    private void publishEvent(String songId, Optional<DownloadQueueItem> next) {
+        var event = next
+                .map(item -> new DownloadManagerEvent(
+                        songId,
+                        switch (item.status()) {
+                            case PENDING -> DownloadManagerEvent.Type.DOWNLOAD_PENDING;
+                            case DOWNLOADING -> DownloadManagerEvent.Type.DOWNLOAD_STARTED;
+                            case COMPLETED -> DownloadManagerEvent.Type.DOWNLOAD_COMPLETED;
+                            case FAILED -> DownloadManagerEvent.Type.DOWNLOAD_FAILED;
+                            case CACHED -> DownloadManagerEvent.Type.SONG_CACHED;
+                        },
+                        next
+                )).orElseGet(() -> new DownloadManagerEvent(songId, DownloadManagerEvent.Type.REMOVED_FROM_QUEUE, next));
         for (var listener : listeners) {
             try {
                 listener.accept(event);
             } catch (Exception e) {
-                log.warn("Download listener threw for song {}", item.songId(), e);
+                log.warn("Download listener threw for song {}", songId, e);
             }
         }
     }
@@ -212,7 +219,7 @@ public class DownloadManager implements DownloadNotifier {
     private void downloadSong(DownloadQueueItem item) {
         try {
             this.dbService.updateDownloadProgress(item.songId(), DownloadStatus.DOWNLOADING, item.progress(), null);
-            this.songStatusCache.invalidate(item.songId());
+            downloadQueue.put(item.songId(), item.withStatus(DownloadStatus.DOWNLOADING).withProgress(0));
             this.publishEvent(item.songId());
 
             var transcodeInfo = new TranscodeInfo(
@@ -231,7 +238,7 @@ public class DownloadManager implements DownloadNotifier {
                     item.originalSize(),
                     (total, count) -> {
                         double progress = (double) count / total;
-                        dbService.updateDownloadProgress(item.songId(), DownloadStatus.DOWNLOADING, progress, null);
+                        downloadQueue.put(item.songId(), item.withStatus(DownloadStatus.DOWNLOADING).withProgress(progress));
                     }
             );
 
@@ -247,7 +254,7 @@ public class DownloadManager implements DownloadNotifier {
             }
 
             this.dbService.updateDownloadProgress(item.songId(), DownloadStatus.COMPLETED, 1.0, null, checksum);
-            this.songStatusCache.invalidate(item.songId());
+            this.loadSong(item.songId()).ifPresent(s -> downloadQueue.put(s.songId(), s));
             this.publishEvent(item.songId());
             log.info("Downloaded song: {} with checksum: {}", item.songId(), checksum);
         } catch (Exception e) {
@@ -257,7 +264,7 @@ public class DownloadManager implements DownloadNotifier {
             }
             log.error("Failed to download song: {}", item.songId(), e);
             dbService.updateDownloadProgress(item.songId(), DownloadStatus.FAILED, 0.0, e.getMessage());
-            this.songStatusCache.invalidate(item.songId());
+            downloadQueue.put(item.songId(), item.withStatus(DownloadStatus.FAILED).withProgress(0.0).withErrorMessage(e.getMessage()));
             this.publishEvent(item.songId());
         }
     }
