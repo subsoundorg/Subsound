@@ -9,20 +9,21 @@ import org.subsound.integration.ServerClient.TranscodeInfo;
 import org.subsound.persistence.database.DatabaseServerService;
 import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
-import org.subsound.ui.models.GDownloadState;
 import org.subsound.utils.Utils;
 
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-public class DownloadManager {
+public class DownloadManager implements DownloadNotifier {
     private static final Logger log = LoggerFactory.getLogger(DownloadManager.class);
     private final DatabaseServerService dbService;
     private final SongCache songCache;
@@ -32,7 +33,7 @@ public class DownloadManager {
         t.setName("download-manager");
         return t;
     });
-    private final Consumer<DownloadManagerEvent> onEvent;
+    private final List<Consumer<DownloadManagerEvent>> listeners = new CopyOnWriteArrayList<>();
     private final Cache<String, Optional<DownloadQueueItem>> songStatusCache = Caffeine.newBuilder()
             .expireAfterAccess(Duration.ofMinutes(10))
             .maximumSize(1000)
@@ -42,20 +43,23 @@ public class DownloadManager {
 
     public DownloadManager(
             DatabaseServerService dbService,
-            SongCache songCache,
-            Consumer<DownloadManagerEvent> onEvent
+            SongCache songCache
     ) {
         this.dbService = dbService;
         this.songCache = songCache;
-        this.onEvent = onEvent;
-        // Initialize in-memory set from DB (all non-CACHED statuses)
-        dbService.listDownloadQueue(List.of(
-                DownloadStatus.PENDING,
-                DownloadStatus.DOWNLOADING,
-                DownloadStatus.FAILED,
-                DownloadStatus.COMPLETED
-        )).forEach(item -> queuedIds.add(item.songId()));
+        // Warm both caches from DB in a single query: queuedIds tracks non-CACHED,
+        // songStatusCache holds the full item so lookups don't round-trip to DB.
+        dbService.listDownloadQueue(List.of(DownloadStatus.values())).forEach(item -> {
+            if (item.status() != DownloadStatus.CACHED) {
+                queuedIds.add(item.songId());
+            }
+            songStatusCache.put(item.songId(), Optional.of(item));
+        });
         startQueueProcessor();
+    }
+
+    public void subscribe(Consumer<DownloadManagerEvent> listener) {
+        listeners.add(listener);
     }
 
     public List<DownloadQueueItem> listDownloadQueue() {
@@ -79,16 +83,6 @@ public class DownloadManager {
             DOWNLOAD_COMPLETED,
             DOWNLOAD_FAILED,
             SONG_CACHED;
-
-            public GDownloadState toState() {
-                return switch (this) {
-                    case DOWNLOAD_PENDING -> GDownloadState.PENDING;
-                    case DOWNLOAD_STARTED -> GDownloadState.DOWNLOADING;
-                    case DOWNLOAD_COMPLETED -> GDownloadState.DOWNLOADED;
-                    case DOWNLOAD_FAILED -> GDownloadState.NONE;
-                    case SONG_CACHED -> GDownloadState.CACHED;
-                };
-            }
         }
     }
 
@@ -147,7 +141,7 @@ public class DownloadManager {
         this.getSongStatus(songId).ifPresent(this::publishEvent);
     }
     private void publishEvent(DownloadQueueItem item) {
-        var eventOpt = new DownloadManagerEvent(
+        var event = new DownloadManagerEvent(
                 switch (item.status()) {
                     case PENDING -> DownloadManagerEvent.Type.DOWNLOAD_PENDING;
                     case DOWNLOADING -> DownloadManagerEvent.Type.DOWNLOAD_STARTED;
@@ -157,7 +151,26 @@ public class DownloadManager {
                 },
                 item
         );
-        this.onEvent.accept(eventOpt);
+        for (var listener : listeners) {
+            try {
+                listener.accept(event);
+            } catch (Exception e) {
+                log.warn("Download listener threw for song {}", item.songId(), e);
+            }
+        }
+    }
+
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    private static boolean hasCause(Throwable t, Class<? extends Throwable> cls) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cls.isInstance(cause)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void processQueue() {
@@ -167,6 +180,9 @@ public class DownloadManager {
                 DownloadStatus.FAILED
         ));
         for (DownloadQueueItem item : pendingItems) {
+            if (!this.running) {
+                return;
+            }
             if (item.status() == DownloadStatus.PENDING || item.status() == DownloadStatus.DOWNLOADING) {
                 downloadSong(item);
             }
@@ -215,6 +231,10 @@ public class DownloadManager {
             this.publishEvent(item.songId());
             log.info("Downloaded song: {} with checksum: {}", item.songId(), checksum);
         } catch (Exception e) {
+            if (!this.running && hasCause(e, InterruptedIOException.class)) {
+                log.info("Download cancelled during shutdown: {}", item.songId());
+                return;
+            }
             log.error("Failed to download song: {}", item.songId(), e);
             dbService.updateDownloadProgress(item.songId(), DownloadStatus.FAILED, 0.0, e.getMessage());
             this.songStatusCache.invalidate(item.songId());

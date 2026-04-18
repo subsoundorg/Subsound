@@ -2,6 +2,7 @@ package org.subsound.ui.models;
 
 import org.subsound.integration.ServerClient.ObjectIdentifier.SongIdentifier;
 import org.subsound.integration.ServerClient.SongInfo;
+import org.subsound.persistence.DownloadNotifier;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,14 +10,21 @@ import java.util.function.Function;
 
 public class GSongStore {
     private final ConcurrentHashMap<String, GSongInfo> store = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, GDownloadState> downloadState = new ConcurrentHashMap<>();
     private final Function<String, SongInfo> songLoader;
+    private final DownloadNotifier downloads;
 
     public GSongStore(
-            Function<String, SongInfo> songLoader
-    )
-    {
+            Function<String, SongInfo> songLoader,
+            DownloadNotifier downloads
+    ) {
         this.songLoader = songLoader;
+        this.downloads = downloads;
+        downloads.subscribe(event -> {
+            var existing = store.get(event.item().songId());
+            if (existing != null) {
+                existing.setDownloadState(GDownloadState.from(event.item().status()));
+            }
+        });
     }
 
     public GSongInfo getSongById(SongIdentifier id) {
@@ -41,15 +49,12 @@ public class GSongStore {
     }
 
     public GSongInfo newInstance(SongInfo value) {
-        // TODO: replace with the updated SongInfo data
         var gsong = store.computeIfAbsent(
                 value.id(),
                 key -> {
-                    GSongInfo instance = GSongInfo.newInstance(value);
-                    var downloadStatus = this.downloadState.get(key);
-                    if (downloadStatus != null) {
-                        instance.setDownloadState(downloadStatus);
-                    }
+                    var instance = GSongInfo.newInstance(value);
+                    downloads.getSongStatus(key)
+                            .ifPresent(item -> instance.setDownloadState(GDownloadState.from(item.status())));
                     return instance;
                 }
         );
@@ -59,13 +64,5 @@ public class GSongStore {
 
     public int size() {
         return store.size();
-    }
-
-    public void setDownloadState(String songId, GDownloadState state) {
-        downloadState.put(songId, state);
-        var existing = store.get(songId);
-        if (existing != null) {
-            existing.setDownloadState(state);
-        }
     }
 }

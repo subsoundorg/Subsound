@@ -6,7 +6,6 @@ import org.javagi.gobject.SignalConnection;
 import org.javagi.gobject.annotations.Property;
 import org.javagi.gobject.types.Types;
 import org.subsound.integration.ServerClient.SongInfo;
-import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
 
 import java.lang.foreign.MemorySegment;
 import java.time.Instant;
@@ -70,17 +69,6 @@ public class GSongInfo extends GObject {
     }
     public GDownloadState getDownloadStateEnum() {
         return this.downloadState;
-    }
-
-    @Property(skip = true)
-    public void setDownloadStateEnum(DownloadStatus next) {
-        this.setDownloadState(switch (next) {
-            case PENDING -> GDownloadState.PENDING;
-            case DOWNLOADING -> GDownloadState.DOWNLOADING;
-            case COMPLETED -> GDownloadState.DOWNLOADED;
-            case FAILED -> GDownloadState.NONE;
-            case CACHED -> GDownloadState.CACHED;
-        });
     }
 
     @Property

@@ -2,6 +2,7 @@ package org.subsound.ui.models;
 
 import org.gnome.glib.Type;
 import org.javagi.gobject.types.Types;
+import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
 
 public enum GDownloadState {
     NONE, // ie. not downloaded. need to online and connected to server to play
@@ -22,6 +23,16 @@ public enum GDownloadState {
             case 3 -> DOWNLOADED;
             case 4 -> CACHED;
             default -> throw new IllegalArgumentException("Invalid download state: " + ordinal);
+        };
+    }
+
+    public static GDownloadState from(DownloadStatus status) {
+        return switch (status) {
+            case PENDING -> PENDING;
+            case DOWNLOADING -> DOWNLOADING;
+            case COMPLETED -> DOWNLOADED;
+            case CACHED -> CACHED;
+            case FAILED -> NONE;
         };
     }
 
