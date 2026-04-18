@@ -56,6 +56,9 @@ public class MPrisController implements MediaPlayer2, MediaPlayer2Player, AppMan
 
     public void stop() {
         if (isShutdown.compareAndSet(false, true)) {
+            // Silence dbus-java's IncomingMessageThread: closing the DBusConnection below
+            // makes it read EOF on the socket and log a misleading "FatalException".
+            silenceDbusShutdownNoise();
             // remove receiving state updates:
             this.appManager.removeOnStateChanged(this);
             this.dbusMessageChannel.done();
@@ -66,6 +69,14 @@ public class MPrisController implements MediaPlayer2, MediaPlayer2Player, AppMan
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private static void silenceDbusShutdownNoise() {
+        var ctx = (ch.qos.logback.classic.LoggerContext) org.slf4j.LoggerFactory.getILoggerFactory();
+        ctx.getLogger("org.freedesktop.dbus.connections.base.IncomingMessageThread")
+                .setLevel(ch.qos.logback.classic.Level.OFF);
+        ctx.getLogger("org.freedesktop.dbus.connections.base.AbstractConnectionBase")
+                .setLevel(ch.qos.logback.classic.Level.OFF);
     }
 
     public void run() {
