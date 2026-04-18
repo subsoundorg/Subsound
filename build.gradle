@@ -107,7 +107,7 @@ test {
 }
 
 testlogger {
-    theme 'mocha'
+    theme 'standard'
     showExceptions true
     showCauses true
     showStackTraces true
