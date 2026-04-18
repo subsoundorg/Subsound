@@ -1032,7 +1032,13 @@ public class SubsonicClientV2 implements ServerClient {
                 throw new RuntimeException("Unexpected content-type=%s for coverArt=%s".formatted(
                         contentType, coverArt.coverArtId()));
             }
-            byte[] data = response.body() != null ? response.body().bytes() : new byte[0];
+            if (response.body() == null) {
+                throw new RuntimeException("Null response body for coverArt=%s".formatted(coverArt.coverArtId()));
+            }
+            byte[] data = response.body().bytes();
+            if (data.length == 0) {
+                throw new RuntimeException("Empty response body for coverArt=%s".formatted(coverArt.coverArtId()));
+            }
             return new CoverArtResponse(data, contentType);
         } catch (IOException e) {
             throw new RuntimeException("Failed to download coverArt=%s".formatted(coverArt.coverArtId()), e);
