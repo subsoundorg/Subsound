@@ -58,7 +58,18 @@
   </branding>
 
   <releases>
-    <release version="@version@" date="2026-04-17">
+    <release version="@version@" date="2026-04-18">
+      <description>
+        <ul>
+          <li>New: quick-filter search in playlist views — press Ctrl+F or start typing to filter by title, artist, or album</li>
+          <li>New: download status counter so you can see at a glance how many songs are downloaded</li>
+          <li>New: offline play history is now kept and scrobbled back to the server when you come back online</li>
+          <li>"Clear song cache" now immediately updates the song list and download counts</li>
+          <li>Fixed an issue where cover art could fail to load under spotty network conditions</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.6.17" date="2026-04-17">
       <description>
         <ul>
           <li>Play queue is now saved and restored across app restarts</li>
