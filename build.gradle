@@ -6,6 +6,7 @@ plugins {
     id 'java'
     id 'com.gradleup.shadow' version '9.3.2'
     id 'io.github.jwharm.flatpak-gradle-generator' version '1.7.0'
+    id 'com.adarshr.test-logger' version '4.0.0'
 }
 
 repositories {
@@ -103,18 +104,23 @@ java {
 test {
     jvmArgs += "--enable-native-access=ALL-UNNAMED"
     useJUnit()
+}
 
-    // listen to events in the test execution lifecycle
-    beforeTest { descriptor ->
-        logger.lifecycle("Running test: " + descriptor)
-    }
-    afterTest { desc, result ->
-        def output = "Class name: ${desc.className}, Test name: ${desc.name},  (Test status: ${result.resultType})"
-        println( '\n' + output)
-    }
-
-    // show standard out and standard error of the test JVM(s) on the console
-    testLogging.showStandardStreams = true
+testlogger {
+    theme 'mocha'
+    showExceptions true
+    showCauses true
+    showStackTraces true
+    showFullStackTraces true
+    showStandardStreams true
+    showPassedStandardStreams false
+    showSkippedStandardStreams false
+    showFailedStandardStreams true
+    slowThreshold 2000
+    showSummary true
+    showPassed true
+    showSkipped true
+    showFailed true
 }
 
 tasks.named('run') {
