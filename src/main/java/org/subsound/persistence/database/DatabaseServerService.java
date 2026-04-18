@@ -911,13 +911,29 @@ public class DatabaseServerService {
         }
     }
 
-    public List<String> clearCachedSongs() {
+    public void resetDownloadStatusTo(DownloadStatus downloadStatus) {
+        String sql = "UPDATE download_queue SET status = ? WHERE server_id = ?";
+        try (Connection conn = database.openConnection()) {
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, downloadStatus.toString());
+                pstmt.setString(2, this.serverId.toString());
+                int rows = pstmt.executeUpdate();
+                logger.info("resetDownloadStatus: rows={} set to status={}", rows, downloadStatus);
+            }
+        } catch (SQLException e) {
+            logger.error("resetDownloadStatus: failed to run sql", e);
+            throw new RuntimeException("resetDownloadStatus", e);
+        }
+    }
+
+    public List<String> clearDownloadsWithStatus(DownloadStatus status) {
         List<String> deletedSongIds = new ArrayList<>();
-        String selectSql = "SELECT song_id FROM download_queue WHERE server_id = ? AND status = 'CACHED'";
-        String deleteSql = "DELETE FROM download_queue WHERE server_id = ? AND status = 'CACHED'";
+        String selectSql = "SELECT song_id FROM download_queue WHERE server_id = ? AND status = ?";
+        String deleteSql = "DELETE FROM download_queue WHERE server_id = ? AND status = ?";
         try (Connection conn = database.openConnection()) {
             try (PreparedStatement pstmt = conn.prepareStatement(selectSql)) {
                 pstmt.setString(1, this.serverId.toString());
+                pstmt.setString(2, status.toString());
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
                         deletedSongIds.add(rs.getString("song_id"));
@@ -926,6 +942,7 @@ public class DatabaseServerService {
             }
             try (PreparedStatement pstmt = conn.prepareStatement(deleteSql)) {
                 pstmt.setString(1, this.serverId.toString());
+                pstmt.setString(2, status.toString());
                 int deleted = pstmt.executeUpdate();
                 logger.info("Cleared {} cached songs for server {}", deleted, serverId);
             }

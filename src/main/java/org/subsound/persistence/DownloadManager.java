@@ -62,6 +62,13 @@ public class DownloadManager implements DownloadNotifier {
         return dbService.listDownloadQueue();
     }
 
+    public void resetSongCache() {
+        // clear all our DownloadStatus.CACHED items from the table:
+        dbService.clearDownloadsWithStatus(DownloadStatus.CACHED);
+        // keep the rest and set them to pending:
+        dbService.resetDownloadStatusTo(DownloadStatus.PENDING);
+    }
+
     public record DownloadManagerEvent(
             String songId,
             Type type,

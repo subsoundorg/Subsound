@@ -31,6 +31,7 @@ import org.subsound.persistence.database.Database;
 import org.subsound.persistence.database.DatabaseServerService;
 import org.subsound.persistence.database.DatabaseService;
 import org.subsound.persistence.database.DownloadQueueItem;
+import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
 import org.subsound.persistence.database.PlayQueueItemRow;
 import org.subsound.persistence.database.PlayQueueStateJson;
 import org.subsound.persistence.database.PlayerConfig;
@@ -42,7 +43,6 @@ import org.subsound.sound.PlaybinPlayer;
 import org.subsound.sound.PlaybinPlayer.AudioSource;
 import org.subsound.sound.PlaybinPlayer.Source;
 import org.subsound.ui.components.AppNavigation;
-import org.subsound.ui.models.GDownloadState;
 import org.subsound.ui.models.GQueueItem;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GSongStore;
@@ -57,7 +57,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -72,7 +71,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.subsound.app.state.AppManager.NowPlaying.State.LOADING;
 import static org.subsound.app.state.AppManager.NowPlaying.State.READY;
@@ -393,10 +391,10 @@ public class AppManager {
 
     public java.util.List<DownloadQueueItem> getDownloadQueue() {
         return dbService.listDownloadQueue(java.util.List.of(
-                DownloadQueueItem.DownloadStatus.COMPLETED,
-                DownloadQueueItem.DownloadStatus.PENDING,
-                DownloadQueueItem.DownloadStatus.DOWNLOADING,
-                DownloadQueueItem.DownloadStatus.FAILED
+                DownloadStatus.COMPLETED,
+                DownloadStatus.PENDING,
+                DownloadStatus.DOWNLOADING,
+                DownloadStatus.FAILED
         ));
     }
 
@@ -857,6 +855,7 @@ public class AppManager {
                     )));
                 }
                 case PlayerAction.ClearSongCache _ -> {
+                    this.downloadManager.resetSongCache();
                     this.songCache.clearSongs(SERVER_ID);
                     this.toast(new PlayerAction.Toast(new org.gnome.adw.Toast("Song cache cleared")));
                 }
