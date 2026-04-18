@@ -11,6 +11,7 @@ import org.subsound.persistence.database.DownloadQueueItem;
 import org.subsound.persistence.database.DownloadQueueItem.DownloadStatus;
 import org.subsound.utils.Utils;
 
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -159,6 +160,19 @@ public class DownloadManager implements DownloadNotifier {
         }
     }
 
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    private static boolean hasCause(Throwable t, Class<? extends Throwable> cls) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cls.isInstance(cause)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void processQueue() {
         List<DownloadQueueItem> pendingItems = dbService.listDownloadQueue(List.of(
                 DownloadStatus.PENDING,
@@ -166,6 +180,9 @@ public class DownloadManager implements DownloadNotifier {
                 DownloadStatus.FAILED
         ));
         for (DownloadQueueItem item : pendingItems) {
+            if (!this.running) {
+                return;
+            }
             if (item.status() == DownloadStatus.PENDING || item.status() == DownloadStatus.DOWNLOADING) {
                 downloadSong(item);
             }
@@ -214,6 +231,10 @@ public class DownloadManager implements DownloadNotifier {
             this.publishEvent(item.songId());
             log.info("Downloaded song: {} with checksum: {}", item.songId(), checksum);
         } catch (Exception e) {
+            if (!this.running && hasCause(e, InterruptedIOException.class)) {
+                log.info("Download cancelled during shutdown: {}", item.songId());
+                return;
+            }
             log.error("Failed to download song: {}", item.songId(), e);
             dbService.updateDownloadProgress(item.songId(), DownloadStatus.FAILED, 0.0, e.getMessage());
             this.songStatusCache.invalidate(item.songId());
