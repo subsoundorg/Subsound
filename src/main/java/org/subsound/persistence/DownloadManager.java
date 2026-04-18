@@ -63,10 +63,31 @@ public class DownloadManager implements DownloadNotifier {
     }
 
     public void resetSongCache() {
+        // Snapshot every song we're currently tracking — each will need a UI
+        // refresh once we've reset the DB state below.
+        var affectedSongIds = new java.util.HashSet<>(this.downloadQueue.keySet());
+
         // clear all our DownloadStatus.CACHED items from the table:
         dbService.clearDownloadsWithStatus(DownloadStatus.CACHED);
         // keep the rest and set them to pending:
         dbService.resetDownloadStatusTo(DownloadStatus.PENDING);
+
+        // Rehydrate in-memory maps from the DB. CACHED rows are gone; the rest
+        // are PENDING now. Mirrors the warm-up loop in the constructor.
+        this.downloadQueue.clear();
+        this.queuedIds.clear();
+        dbService.listDownloadQueue(List.of(DownloadStatus.values())).forEach(item -> {
+            if (item.status() != DownloadStatus.CACHED) {
+                queuedIds.add(item.songId());
+            }
+            downloadQueue.put(item.songId(), item);
+        });
+
+        // publishEvent emits REMOVED_FROM_QUEUE when the song is no longer
+        // tracked (previously CACHED) and DOWNLOAD_PENDING when it was kept.
+        for (var songId : affectedSongIds) {
+            this.publishEvent(songId);
+        }
     }
 
     public record DownloadManagerEvent(
