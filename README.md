@@ -8,6 +8,8 @@ Best used with [Navidrome](https://github.com/navidrome/navidrome).
 
 [![Get it on Flathub](https://flathub.org/api/badge?locale=en)](https://flathub.org/apps/io.github.subsoundorg.Subsound)
 
+[![Please do not theme this app](https://stopthemingmy.app/badge.svg)](https://stopthemingmy.app)
+
 Install from Flathub:
 
 ```bash
