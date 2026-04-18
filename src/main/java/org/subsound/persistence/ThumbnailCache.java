@@ -120,15 +120,16 @@ public class ThumbnailCache {
         var cachePath = toCachePath(this.root, coverArt.serverId(), coverArt.coverArtId());
         var cacheAbsPath = cachePath.cachePath().toAbsolutePath();
         return Utils.doAsync(() -> {
-            // Fast path: already on disk
-            if (cacheAbsPath.toFile().exists() && cacheAbsPath.toFile().length() > 0) {
-                return new ThumbLoaded(cachePath);
-            }
             try {
+                File cacheFile = cacheAbsPath.toFile();
+                // Fast path: already on disk
+                if (cacheFile.exists() && cacheFile.length() > 0) {
+                    return new ThumbLoaded(cachePath);
+                }
                 semaphore.acquire(1);
                 try {
                     // Double-check after acquiring semaphore
-                    if (cacheAbsPath.toFile().exists() && cacheAbsPath.toFile().length() > 0) {
+                    if (cacheFile.exists() && cacheFile.length() > 0) {
                         return new ThumbLoaded(cachePath);
                     }
 
@@ -144,8 +145,9 @@ public class ThumbnailCache {
                     var tmpFilePath = cacheAbsPath.resolveSibling(
                             cacheAbsPath.getFileName() + "." + requestId + ".tmp"
                     );
-                    tmpFilePath.toFile().deleteOnExit();
                     try {
+                        var tmpFile = tmpFilePath.toFile();
+                        tmpFile.deleteOnExit();
                         try (var out = Files.newOutputStream(tmpFilePath)) {
                             out.write(body);
                         }
@@ -162,7 +164,8 @@ public class ThumbnailCache {
             } catch (IOException e) {
                 throw new RuntimeException("error loading: " + coverArt.coverArtLink(), e);
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                log.info("Interrupted while loading thumbnail: {}", coverArt.coverArtLink());
+                return null;
             }
         });
     }
