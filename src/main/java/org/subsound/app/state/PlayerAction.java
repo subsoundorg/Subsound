@@ -24,6 +24,7 @@ public sealed interface PlayerAction {
     }
     record SetPlayMode(PlayMode mode) implements PlayerAction {}
     record SeekTo(Duration position) implements PlayerAction {}
+    record SeekRelative(Duration offset) implements PlayerAction {}
     record QueueSlot(String id, SongInfo song) {}
 
     record PlayAndReplaceQueue(ObjectIdentifier playContext, List<QueueSlot> queue, int position) implements PlayerAction {

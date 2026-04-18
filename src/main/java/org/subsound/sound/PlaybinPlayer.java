@@ -366,6 +366,21 @@ public class PlaybinPlayer implements Player {
         this.notifyState();
     }
 
+    public void seekRelative(Duration offset) {
+        //playbin.seek(1.0, Format.TIME, SeekFlags.FLUSH, SeekType.SET, 0, SeekType.NONE, 0);
+        this.playbackStartedAtMillis = 0;
+        var p = this.getCurrentPosition();
+        if (p.isEmpty()) {
+            return;
+        }
+        var nextPos = p.get().plus(offset);
+        if (nextPos.getSeconds() < 0) {
+            nextPos = Duration.ZERO;
+        }
+        playbinEl.seekSimple(Format.TIME, Set.of(SeekFlags.ACCURATE, SeekFlags.FLUSH), nextPos.toNanos());
+        this.notifyState();
+    }
+
     private void onPipelineStateChanged() {
         var player = playbinEl;
         if (player == null) {

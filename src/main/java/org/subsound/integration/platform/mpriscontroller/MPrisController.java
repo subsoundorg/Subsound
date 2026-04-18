@@ -20,6 +20,7 @@ import org.subsound.app.state.PlayerAction;
 import org.subsound.configuration.constants.Constants;
 import org.subsound.sound.PlaybinPlayer;
 import org.subsound.utils.OsUtil;
+import org.subsound.utils.Utils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -167,10 +168,22 @@ public class MPrisController implements MediaPlayer2, MediaPlayer2Player, AppMan
         this.appManager.play();
     }
 
+    // Method: org.mpris.MediaPlayer2.Player.Seek(x: Offset)
+    //  Argument (Offset): An int64 representing the number of microseconds to seek forward.
+    // Behavior:
+    //    Forward: A positive value seeks forward in the current track.
+    //    Backward: A negative value seeks backward.
+    //    Limits: If the seek goes before the start of the track, the position is set to 0. If it goes beyond the end of the track, it acts like a call to Next.
+    //    Effect: The CanSeek property must be true for this to have an effect.
+    //
+    // Signal (Seeked): When the Seek method is called and the position changes, the player should emit a Seeked signal with the new position (int64 in microseconds).
     @Override
     public void Seek(long microseconds) {
         var pos = Duration.ofNanos(microseconds * 1000L);
         log.info("Seek to pos={}", pos.getSeconds());
+        Utils.doAsync(() -> {
+            this.appManager.handleAction(new PlayerAction.SeekRelative(pos));
+        });
     }
 
     @Override

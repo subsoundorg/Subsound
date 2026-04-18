@@ -772,6 +772,7 @@ public class AppManager {
                 case PlayerAction.PlayNext a -> this.playQueue.attemptPlayNext();
                 case PlayerAction.PlayPrev a -> this.playQueue.attemptPlayPrev();
                 case PlayerAction.SeekTo seekTo -> this.player.seekTo(seekTo.position());
+                case PlayerAction.SeekRelative seek -> this.player.seekRelative(seek.offset());
                 case PlayerAction.SetPlayMode a -> {
                     switch (a.mode()) {
                         case SHUFFLE -> this.playQueue.shuffle();

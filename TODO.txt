@@ -203,7 +203,7 @@ worklog:
     - [X] Track info
     - [X] Optimize updates for when we post a new state (hopefully we don't need more optimization here)
     - [X] Get Position
-    - [ ] Set position
+    - [X] Set Position
     - [ ] `xesam:url` is a url back to e.g the youtube video or a direct link to the media content
 
 Releasing a Flatpak:
