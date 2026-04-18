@@ -10,8 +10,11 @@ import org.gnome.gtk.Box;
 import org.gnome.gtk.Button;
 import org.gnome.gtk.ColumnView;
 import org.gnome.gtk.ColumnViewColumn;
+import org.gnome.gtk.CustomFilter;
 import org.gnome.gtk.Entry;
 import org.gnome.gtk.EventControllerKey;
+import org.gnome.gtk.FilterChange;
+import org.gnome.gtk.FilterListModel;
 import org.gnome.gtk.Label;
 import org.gnome.gtk.ListItem;
 import org.gnome.gtk.ListTabBehavior;
@@ -20,6 +23,8 @@ import org.gnome.gtk.Overlay;
 import org.gnome.gtk.Popover;
 import org.gnome.gtk.PropagationPhase;
 import org.gnome.gtk.ScrolledWindow;
+import org.gnome.gtk.SearchBar;
+import org.gnome.gtk.SearchEntry;
 import org.gnome.gtk.Separator;
 import org.gnome.gtk.SignalListItemFactory;
 import org.gnome.gtk.SingleSelection;
@@ -65,6 +70,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static com.twelvemonkeys.lang.StringUtil.containsIgnoreCase;
 import static org.gnome.adw.ResponseAppearance.DEFAULT;
 import static org.gnome.adw.ResponseAppearance.DESTRUCTIVE;
 import static org.gnome.adw.ResponseAppearance.SUGGESTED;
@@ -90,8 +96,13 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
     private final AtomicReference<MiniState> prevState;
     private final Consumer<AppRoute> onNavigate;
     private final ListStore<GPlaylistEntry> listModel = new ListStore<>();
+    private final FilterListModel<GPlaylistEntry> filterModel;
+    private final CustomFilter searchFilter;
+    private volatile String searchQuery = "";
     private final SortListModel<GPlaylistEntry> sortModel;
     private final SingleSelection<GPlaylistEntry> selectionModel;
+    private final SearchBar searchBar;
+    private final SearchEntry searchEntry;
     private final ConcurrentHashMap<String, List<NowPlayingCell>> listeners = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<TitleArtistCell>> listenersTitle = new ConcurrentHashMap<>();
     private final AtomicReference<ServerClient.PlaylistSimple> currentPlaylist = new AtomicReference<>();
@@ -180,14 +191,56 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
                 .setTabBehavior(ListTabBehavior.ITEM)
                 .build();
 
-        // 2. Wire sorting: ColumnView aggregates per-column sorters into one composite sorter
-        this.sortModel = new SortListModel<>(this.listModel, this.listView.getSorter());
+        // 2. Insert a filter (for the Ctrl+F search bar) between the raw list and the sorter.
+        // The filter reads `searchQuery` and matches title/artist/album case-insensitively.
+        this.searchFilter = new CustomFilter(item -> {
+            var q = this.searchQuery;
+            if (q == null || q.isEmpty()) {
+                return true;
+            }
+            if (!(item instanceof GPlaylistEntry entry)) {
+                return true;
+            }
+            var song = entry.song();
+            return containsIgnoreCase(song.title(), q)
+                   || containsIgnoreCase(song.artist(), q)
+                   || containsIgnoreCase(song.album(), q);
+        });
+        this.filterModel = new FilterListModel<>(this.listModel, this.searchFilter);
 
-        // 3. Selection wraps sort model
+        // 3. Wire sorting over the filtered model: ColumnView aggregates per-column sorters.
+        this.sortModel = new SortListModel<>(this.filterModel, this.listView.getSorter());
+
+        // Search bar — revealer that slides down above the list. Must be constructed
+        // before the key controller since the Ctrl+F handler references these fields.
+        this.searchEntry = SearchEntry.builder()
+                .setPlaceholderText("Filter by title, artist, or album")
+                .setHexpand(true)
+                .build();
+        this.searchBar = SearchBar.builder()
+                .setChild(this.searchEntry)
+                .setShowCloseButton(true)
+                .build();
+        this.searchBar.addCssClass("filter-searchbar");
+        this.searchBar.connectEntry(this.searchEntry);
+        // Typing printable chars while focus is anywhere in this view pops the bar open.
+        this.searchBar.setKeyCaptureWidget(this);
+        this.searchEntry.onSearchChanged(() -> {
+            var text = this.searchEntry.getText();
+            this.searchQuery = text == null ? "" : text.trim();
+            this.searchFilter.changed(FilterChange.DIFFERENT);
+        });
+        this.searchEntry.onStopSearch(() -> {
+            // Escape pressed inside the entry — close and clear the filter.
+            this.searchBar.setSearchMode(false);
+            this.searchEntry.setText("");
+        });
+
+        // 4. Selection wraps sort model
         this.selectionModel = new SingleSelection<>(this.sortModel);
         this.listView.setModel(this.selectionModel);
 
-        // 4. Build columns with per-column factories and sorters, then append them
+        // 5. Build columns with per-column factories and sorters, then append them
 
         // --- Now-playing / track-number column (60px, sortable by original position) ---
         var nowPlayingFactory = new SignalListItemFactory();
@@ -444,6 +497,14 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
         var keyController = new EventControllerKey();
         keyController.setPropagationPhase(PropagationPhase.CAPTURE);
         keyController.onKeyPressed((keyval, keycode, state) -> {
+            // GDK_KEY_f = 0x0066 — Ctrl+F toggles the search bar
+            if (keyval == 0x66 && state.contains(org.gnome.gdk.ModifierType.CONTROL_MASK)) {
+                this.searchBar.setSearchMode(!this.searchBar.getSearchMode());
+                if (this.searchBar.getSearchMode()) {
+                    this.searchEntry.grabFocus();
+                }
+                return true;
+            }
             // GDK_KEY_space = 0x0020
             if (keyval == 0x20) {
                 if (appManager.getState().player().state().isPlaying()) {
@@ -551,6 +612,7 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
         headerBox.append(this.menuButton);
 
         this.append(headerBox);
+        this.append(this.searchBar);
         this.append(this.scroll);
     }
 
@@ -577,6 +639,8 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
     }
 
     public void setSongs(List<GSongInfo> songs, ServerClient.PlaylistSimple playlist) {
+        var prev = this.currentPlaylist.get();
+        boolean playlistChanged = prev == null || !prev.id().equals(playlist.id());
         this.currentPlaylist.set(playlist);
         this.lastKnownSongCount = playlist.songCount();
         this.reloadNeeded = false;
@@ -589,6 +653,13 @@ public class PlaylistListViewV2 extends Box implements AppManager.StateListener 
         Utils.runOnMainThread(() -> {
             this.titleLabel.setLabel(playlist.name());
             this.menuButton.setVisible(playlist.kind() == ServerClient.PlaylistKind.NORMAL);
+            if (playlistChanged) {
+                // Reset the search/filter when navigating to a different playlist.
+                this.searchEntry.setText("");
+                this.searchBar.setSearchMode(false);
+                this.searchQuery = "";
+                this.searchFilter.changed(FilterChange.DIFFERENT);
+            }
             this.listModel.removeAll();
             this.listModel.splice(0, 0, items);
             // Subscribe to GPlaylist metadata changes for the current playlist

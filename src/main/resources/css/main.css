@@ -162,3 +162,10 @@ scale slider {
 .album-info-main {
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.25) 40%, @window_bg_color 96%);
 }
+
+/* Apply the window background/foreground to the full SearchBar subtree
+ * (GtkSearchBar visible chrome is revealer > box, not the outer widget). */
+.filter-searchbar > revealer > box {
+    background-color: var(--window-bg-color);
+    color: var(--window-fg-color);
+}
