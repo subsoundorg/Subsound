@@ -20,9 +20,12 @@ public class GSongStore {
         this.songLoader = songLoader;
         this.downloads = downloads;
         downloads.subscribe(event -> {
-            var existing = store.get(event.item().songId());
+            var existing = store.get(event.songId());
             if (existing != null) {
-                existing.setDownloadState(GDownloadState.from(event.item().status()));
+                var state = event.item()
+                        .map(i -> GDownloadState.from(i.status()))
+                        .orElse(GDownloadState.NONE);
+                existing.setDownloadState(state);
             }
         });
     }

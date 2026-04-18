@@ -1,8 +1,11 @@
 package org.subsound.persistence.database;
 
+import io.soabase.recordbuilder.core.RecordBuilder;
+
 import java.util.Optional;
 import java.util.UUID;
 
+@RecordBuilder
 public record DownloadQueueItem(
         String songId,
         UUID serverId,
@@ -15,7 +18,7 @@ public record DownloadQueueItem(
         int estimatedBitRate,
         long durationSeconds,
         Optional<String> checksum
-) {
+) implements DownloadQueueItemBuilder.With {
     public enum DownloadStatus {
         PENDING, DOWNLOADING, COMPLETED, FAILED, CACHED;
 
