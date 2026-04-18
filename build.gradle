@@ -124,7 +124,7 @@ testlogger {
 }
 
 tasks.named('run') {
-    jvmArgs += "-XstartOnFirstThread"
+    //jvmArgs += "-XstartOnFirstThread"
     jvmArgs += "--enable-native-access=ALL-UNNAMED"
     jvmArgs += "-Djava.library.path=/usr/lib64:/lib64:/lib:/usr/lib:/lib/x86_64-linux-gnu "
     //jvmArgs += "-Djava.library.path=/usr/lib64:/lib64:/lib:/usr/lib:/lib/x86_64-linux-gnu:/opt/homebrew/lib "
