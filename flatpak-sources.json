@@ -36,6 +36,34 @@
   },
   {
     "type": "file",
+    "url": "https://plugins.gradle.org/m2/com/adarshr/gradle-test-logger-plugin/4.0.0/gradle-test-logger-plugin-4.0.0.jar",
+    "sha512": "a6af925cf5ca340b08c6b2f40409e4de44fca210403bfeb2e0104dae1947d919d4c57e206cd3358930d21d07237a6f6194b41bbe2b25d330cec4b3b2eae75243",
+    "dest": "./offline-repository/com/adarshr/gradle-test-logger-plugin/4.0.0",
+    "dest-filename": "gradle-test-logger-plugin-4.0.0.jar"
+  },
+  {
+    "type": "file",
+    "url": "https://plugins.gradle.org/m2/com/adarshr/gradle-test-logger-plugin/4.0.0/gradle-test-logger-plugin-4.0.0.module",
+    "sha512": "272d262a4434919a048c030e77795aa3fe3b3ea5d272597addec681c26c8202cd8640e1d48ae70ebc580f0ec2b824b3090db7f8d8b5d8d1260fe097b7785beb3",
+    "dest": "./offline-repository/com/adarshr/gradle-test-logger-plugin/4.0.0",
+    "dest-filename": "gradle-test-logger-plugin-4.0.0.module"
+  },
+  {
+    "type": "file",
+    "url": "https://plugins.gradle.org/m2/com/adarshr/gradle-test-logger-plugin/4.0.0/gradle-test-logger-plugin-4.0.0.pom",
+    "sha512": "44f9f1a3d3f8b30bafd792006644c93073edb7831b11d5cdf4c7fe674d361266d2aeb30d42a2ca32f18209fa65cc0c644ba5b1354abaad7c6610c1675220f74d",
+    "dest": "./offline-repository/com/adarshr/gradle-test-logger-plugin/4.0.0",
+    "dest-filename": "gradle-test-logger-plugin-4.0.0.pom"
+  },
+  {
+    "type": "file",
+    "url": "https://plugins.gradle.org/m2/com/adarshr/test-logger/com.adarshr.test-logger.gradle.plugin/4.0.0/com.adarshr.test-logger.gradle.plugin-4.0.0.pom",
+    "sha512": "b1f099b73a3266f54e1c8c581e6dae55f435d8febc796cf9fdef1e41d907d89e82bb1569f6f1578a3a1334a9b022e798d3794cec00075b15919365880a3510a0",
+    "dest": "./offline-repository/com/adarshr/test-logger/com.adarshr.test-logger.gradle.plugin/4.0.0",
+    "dest-filename": "com.adarshr.test-logger.gradle.plugin-4.0.0.pom"
+  },
+  {
+    "type": "file",
     "url": "https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-bom/2.19.1/jackson-bom-2.19.1.pom",
     "sha512": "4a2c1a8b9a99049b80dccb672cdff0c7de7223401edfae708d9c5a217bbcef86f424f3099bf83dd47c036137129d52066a1ba332ac022ca4c7bf55e87b694933",
     "dest": "./offline-repository/com/fasterxml/jackson/jackson-bom/2.19.1",
@@ -1300,6 +1328,27 @@
     "sha512": "dc9f8d26d0bf702a302f078e5c9119f8e71ea66dc9ba1d9df428509f1dedfbb20394687a967f09aea6bfd488b672362147cad12dcd127635f7c366fe907556f3",
     "dest": "./offline-repository/org/eclipse/ee4j/project/1.0.8",
     "dest-filename": "project-1.0.8.pom"
+  },
+  {
+    "type": "file",
+    "url": "https://repo.maven.apache.org/maven2/org/fusesource/fusesource-pom/1.12/fusesource-pom-1.12.pom",
+    "sha512": "1378fc44bd73525218e4e435b638d77de1c41185c1813220a024a564d63a1bdcb9fb20fb460937cd7e26b302d5ed0024835c8337b807f1e2f8c4cd63a16db794",
+    "dest": "./offline-repository/org/fusesource/fusesource-pom/1.12",
+    "dest-filename": "fusesource-pom-1.12.pom"
+  },
+  {
+    "type": "file",
+    "url": "https://repo.maven.apache.org/maven2/org/fusesource/jansi/jansi/2.4.0/jansi-2.4.0.jar",
+    "sha512": "7a6a8952b07302cd2ae1beec3241c36cdaa24215b23671ea4a47eb70b3430e99398e3b9a52c6fdaa017e464b5ee5ef5473da250df06c301c5331f7b4535ce4e7",
+    "dest": "./offline-repository/org/fusesource/jansi/jansi/2.4.0",
+    "dest-filename": "jansi-2.4.0.jar"
+  },
+  {
+    "type": "file",
+    "url": "https://repo.maven.apache.org/maven2/org/fusesource/jansi/jansi/2.4.0/jansi-2.4.0.pom",
+    "sha512": "da1370b17c3d1d129e21c0aad41bfd50e4471530431304eafa24775dd10f01493a82686c50492845d8ce0daae58366e32f3d17e023d520ffd3104a18bcbec44c",
+    "dest": "./offline-repository/org/fusesource/jansi/jansi/2.4.0",
+    "dest-filename": "jansi-2.4.0.pom"
   },
   {
     "type": "file",
