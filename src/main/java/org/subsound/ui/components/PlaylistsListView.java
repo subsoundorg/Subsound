@@ -361,6 +361,7 @@ public class PlaylistsListView extends Box {
         private final Image prefixIconStar;
         private final Label titleLabel;
         private final Label subtitleLabel;
+        private final Image subtitleCheckmark;
         private GPlaylist gPlaylist;
         private SignalConnection<NotifyCallback> notifySignal;
 
@@ -426,8 +427,19 @@ public class PlaylistsListView extends Box {
                     .build();
             this.subtitleLabel.setSingleLineMode(true);
 
+            this.subtitleCheckmark = Image.fromIconName(Icons.CheckmarkCircle.getIconName());
+            this.subtitleCheckmark.setPixelSize(14);
+            this.subtitleCheckmark.setValign(CENTER);
+            this.subtitleCheckmark.addCssClass(Classes.colorSuccess.className());
+            this.subtitleCheckmark.setVisible(false);
+
+            var subtitleRow = new Box(HORIZONTAL, 4);
+            subtitleRow.setHalign(START);
+            subtitleRow.append(subtitleCheckmark);
+            subtitleRow.append(subtitleLabel);
+
             contentBox.append(titleLabel);
-            contentBox.append(subtitleLabel);
+            contentBox.append(subtitleRow);
 
             this.append(prefixBox);
             this.append(contentBox);
@@ -446,17 +458,32 @@ public class PlaylistsListView extends Box {
 
         private void updateFromPlaylist(PlaylistSimple playlist) {
             this.titleLabel.setLabel(playlist.name());
-            this.subtitleLabel.setLabel(playlist.songCount() + " items");
+            this.subtitleCheckmark.setVisible(false);
 
             if (playlist.kind() == PlaylistKind.DOWNLOADED) {
                 this.prefixArt.setVisible(false);
                 this.prefixIconStar.setVisible(false);
                 this.prefixIconDownload.setVisible(true);
+
+                var counts = this.gPlaylist != null ? this.gPlaylist.getDownloadCounts() : null;
+                if (counts != null && !counts.isEmpty() && !counts.allDone()) {
+                    // In progress — show "completed / total"
+                    this.subtitleLabel.setLabel(counts.completed() + " / " + counts.total());
+                } else if (counts != null && counts.allDone()) {
+                    // All done — green checkmark next to subtitle
+                    this.subtitleLabel.setLabel(playlist.songCount() + " items");
+                    this.subtitleCheckmark.setVisible(true);
+                } else {
+                    // Empty queue
+                    this.subtitleLabel.setLabel(playlist.songCount() + " items");
+                }
             } else if (playlist.kind() == PlaylistKind.STARRED) {
+                this.subtitleLabel.setLabel(playlist.songCount() + " items");
                 this.prefixArt.setVisible(false);
                 this.prefixIconDownload.setVisible(false);
                 this.prefixIconStar.setVisible(true);
             } else {
+                this.subtitleLabel.setLabel(playlist.songCount() + " items");
                 this.prefixIconDownload.setVisible(false);
                 this.prefixIconStar.setVisible(false);
                 this.prefixArt.setVisible(true);

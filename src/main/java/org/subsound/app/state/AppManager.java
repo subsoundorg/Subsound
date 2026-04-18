@@ -194,6 +194,11 @@ public class AppManager {
         this.playlistsStore = new PlaylistsStore(this);
         this.searchResultStore = new SearchResultStore(this.client::get);
 
+        // Refresh "Downloaded" playlist counts whenever any download state changes.
+        this.downloadManager.subscribe(_ ->
+                this.playlistsStore.updateDownloadedCounts(this.downloadManager.getDownloadCounts())
+        );
+
         if (this.client.get() != null) {
             this.starredList.refreshAsync();
             this.playlistsStore.refreshListAsync();
@@ -380,6 +385,10 @@ public class AppManager {
 
     public Config getConfig() {
         return config;
+    }
+
+    public DownloadManager.DownloadCounts getDownloadCounts() {
+        return this.downloadManager.getDownloadCounts();
     }
 
     public java.util.List<DownloadQueueItem> getDownloadQueue() {
@@ -797,7 +806,6 @@ public class AppManager {
                 case PlayerAction.RemoveFromPlaylist a -> {
                     if (PlaylistsStore.DOWNLOADED_ID.equals(a.playlistId())) {
                         this.downloadManager.removeFromQueue(a.song().id());
-                        this.playlistsStore.updateDownloadedCount(this.downloadManager.getQueuedCount());
                         break;
                     }
                     this.useClient1(c -> c.playlistRemove(new PlaylistRemoveSongRequest(
@@ -808,7 +816,6 @@ public class AppManager {
                 }
                 case PlayerAction.AddToDownloadQueue a -> {
                     this.downloadManager.enqueue(a.song());
-                    this.playlistsStore.updateDownloadedCount(this.downloadManager.getQueuedCount());
                     this.toast(new PlayerAction.Toast(new org.gnome.adw.Toast("Added to download queue")));
                 }
                 case PlayerAction.CreatePlaylist c -> {
@@ -833,7 +840,6 @@ public class AppManager {
                     for (var song : a.songs()) {
                         this.downloadManager.enqueue(song.getSongInfo());
                     }
-                    this.playlistsStore.updateDownloadedCount(this.downloadManager.getQueuedCount());
                     this.toast(new PlayerAction.Toast(new org.gnome.adw.Toast("Added %d items to download queue".formatted(a.songs().size()))));
                 }
                 case PlayerAction.OverrideNetworkStatus(var a) -> {

@@ -117,6 +117,26 @@ public class DownloadManager implements DownloadNotifier {
         return queuedIds.size();
     }
 
+    public record DownloadCounts(int completed, int total) {
+        public boolean allDone() { return total > 0 && completed == total; }
+        public boolean isEmpty() { return total == 0; }
+    }
+
+    public DownloadCounts getDownloadCounts() {
+        int total = 0;
+        int completed = 0;
+        for (var item : downloadQueue.values()) {
+            if (item.status() == DownloadStatus.CACHED) {
+                continue;
+            }
+            total++;
+            if (item.status() == DownloadStatus.COMPLETED) {
+                completed++;
+            }
+        }
+        return new DownloadCounts(completed, total);
+    }
+
     public void removeFromQueue(String songId) {
         queuedIds.remove(songId);
         var current = getSongStatus(songId);

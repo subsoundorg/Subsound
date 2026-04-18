@@ -3,6 +3,8 @@ package org.subsound.app.state;
 import org.subsound.integration.ServerClient;
 import org.subsound.integration.ServerClient.PlaylistKind;
 import org.subsound.integration.ServerClient.PlaylistSimple;
+import org.subsound.persistence.DownloadManager;
+import org.subsound.persistence.DownloadManager.DownloadCounts;
 import org.subsound.ui.models.GSongInfo;
 import org.subsound.ui.models.GSongStore;
 import org.subsound.utils.Utils;
@@ -104,6 +106,9 @@ public class PlaylistsStore {
                     if (downloadedPlaylist == null && metaStore.getNItems() > 1) {
                         downloadedPlaylist = metaStore.getItem(1);
                     }
+                    if (downloadedPlaylist != null) {
+                        downloadedPlaylist.setDownloadCounts(this.appManager.getDownloadCounts());
+                    }
 
                     // Update backing state
                     backingIds.clear();
@@ -126,7 +131,7 @@ public class PlaylistsStore {
     }
 
     private List<PlaylistSimple> buildPlaylistList(List<PlaylistSimple> serverPlaylists, int starredCount) {
-        var downloadCount = this.appManager.getDownloadQueue().size();
+        var downloadCount = this.appManager.getDownloadCounts().total();
 
         var starred = new PlaylistSimple(
                 STARRED_ID,
@@ -248,16 +253,20 @@ public class PlaylistsStore {
         return new Differences(indexDiff.removalIndices(), insertions);
     }
 
-    public void updateDownloadedCount(int count) {
+    public void updateDownloadedCounts(DownloadCounts counts) {
         var sp = this.downloadedPlaylist;
         if (sp == null) {
             return;
         }
         var old = sp.getPlaylist();
         Utils.runOnMainThread(() -> {
-            sp.setValue(new PlaylistSimple(
-                    old.id(), old.name(), old.kind(), old.coverArtId(), count, old.changedAt(), old.created()
-            ));
+            sp.setValueAndCounts(
+                    new PlaylistSimple(
+                            old.id(), old.name(), old.kind(), old.coverArtId(),
+                            counts.total(), old.changedAt(), old.created()
+                    ),
+                    counts
+            );
             for (int i = 0; i < metaStore.getNItems(); i++) {
                 if (DOWNLOADED_ID.equals(metaStore.getItem(i).getId())) {
                     metaStore.emitItemsChanged(i, 1, 1);
@@ -297,6 +306,7 @@ public class PlaylistsStore {
         private String id;
         private PlaylistSimple value;
         private List<GSongInfo> songs;
+        private volatile DownloadManager.DownloadCounts downloadCounts;
 
         public GPlaylist(MemorySegment address) {
             super(address);
@@ -318,8 +328,23 @@ public class PlaylistsStore {
             return value;
         }
 
+        public DownloadManager.DownloadCounts getDownloadCounts() {
+            return downloadCounts;
+        }
+
+        public void setDownloadCounts(DownloadManager.DownloadCounts counts) {
+            this.downloadCounts = counts;
+            this.notify("name");
+        }
+
         public void setValue(PlaylistSimple value) {
             this.value = value;
+            this.notify("name");
+        }
+
+        public void setValueAndCounts(PlaylistSimple value, DownloadManager.DownloadCounts counts) {
+            this.value = value;
+            this.downloadCounts = counts;
             this.notify("name");
         }
         public SignalConnection<NotifyCallback> onChanged(Consumer<GPlaylist> callback) {
