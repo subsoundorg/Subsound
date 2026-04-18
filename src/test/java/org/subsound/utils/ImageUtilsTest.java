@@ -1,5 +1,7 @@
 package org.subsound.utils;
 
+import org.gnome.gio.InputStream;
+import org.gnome.gio.MemoryInputStream;
 import org.javagi.base.GErrorException;
 import org.javagi.base.Out;
 import org.gnome.gdkpixbuf.Pixbuf;
@@ -20,6 +22,17 @@ import static org.subsound.utils.ImageUtils.createRGBString;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ImageUtilsTest {
+
+    public static Pixbuf readPixbufImageBuffer(byte[] bytes, int maxSize) {
+        // Load pixbuf from in-memory bytes
+        try (var imageStream = MemoryInputStream.fromData(bytes)) {
+            return Pixbuf.fromStreamAtScale(imageStream, maxSize, maxSize, true, null);
+        } catch (IOException closeEx) {
+            throw new RuntimeException("Unexpected error closing image stream", closeEx);
+        } catch (GErrorException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Test
     public void testDominantColors() throws IOException {
