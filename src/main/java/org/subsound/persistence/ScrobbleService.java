@@ -83,8 +83,6 @@ public class ScrobbleService {
                 log.error("Failed to submit scrobble: id={} songId={}", entry.id(), entry.songId(), e);
             }
         }
-
-        dbService.deleteSubmittedScrobbles();
     }
 
     public void stop() {
