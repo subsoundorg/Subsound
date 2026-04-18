@@ -12,7 +12,6 @@ import org.subsound.utils.LogUtils;
 import org.subsound.utils.Utils;
 import org.freedesktop.gstreamer.gst.Gst;
 import org.gnome.adw.Application;
-import org.gnome.glib.GLib;
 import org.gnome.gdkpixbuf.Pixbuf;
 import org.gnome.gio.ApplicationFlags;
 import org.javagi.base.Out;
@@ -69,17 +68,19 @@ public class Main {
             }
         });
 
-        // Handle SIGINT (Ctrl+C) and SIGTERM for graceful shutdown
-        GLib.unixSignalAdd(GLib.PRIORITY_DEFAULT, 2, () -> {  // SIGINT
-            log.info("Received SIGINT, shutting down...");
-            app.quit();
-            return GLib.SOURCE_REMOVE;
-        });
-        GLib.unixSignalAdd(GLib.PRIORITY_DEFAULT, 15, () -> { // SIGTERM
-            log.info("Received SIGTERM, shutting down...");
-            app.quit();
-            return GLib.SOURCE_REMOVE;
-        });
+        // SIGINT (Ctrl+C) / SIGTERM are delivered to the JVM and trigger shutdown hooks.
+        // Marshal app.quit() onto the GLib main loop and wait for app.run() to unwind
+        // so onShutdown cleanup completes before the JVM halts.
+        var mainThread = Thread.currentThread();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Received shutdown signal, stopping...");
+            Utils.runOnMainThread(app::quit);
+            try {
+                mainThread.join(5_000);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+        }, "subsound-shutdown"));
 
         try {
             app.onActivate(() -> {
