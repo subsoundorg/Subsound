@@ -18,10 +18,8 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
           sed -i "s/tag: v[0-9][0-9.]*$/tag: ${TAG}/" io.github.subsoundorg.Subsound.yml
-          sed -i "s/-Pversion=[0-9][0-9.]*/-Pversion=${VERSION}/" io.github.subsoundorg.Subsound.yml
           echo "=== tag and version in manifest ==="
           grep "tag:" io.github.subsoundorg.Subsound.yml
-          grep "Pversion" io.github.subsoundorg.Subsound.yml
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: io.github.subsoundorg.Subsound.flatpak
