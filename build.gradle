@@ -15,7 +15,7 @@ repositories {
     google()
 }
 
-def javagiVersion = "0.14.1"
+def javagiVersion = "0.15.0"
 def recordBuilderVersion = "52"
 
 dependencies {
@@ -23,7 +23,7 @@ dependencies {
     implementation "org.java-gi:adw:$javagiVersion"
     implementation "org.java-gi:gstreamer:$javagiVersion"
     implementation "org.java-gi:secret:$javagiVersion"
-    implementation("org.xerial:sqlite-jdbc:3.50.3.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.0.0")
 
     implementation 'net.beardbot:subsonic-client:0.6.0'
     implementation "com.github.ben-manes.caffeine:caffeine:3.2.3"
